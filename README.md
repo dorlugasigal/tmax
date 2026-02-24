@@ -94,16 +94,7 @@ Right-click any tab for:
 
 ## Download
 
-Get the latest release from [GitHub Releases](https://github.com/InbarR/tmax/releases/latest).
-
-| Platform | Download |
-|---|---|
-| **Windows** (installer) | [tmax-1.0.0.Setup.exe](https://github.com/InbarR/tmax/releases/download/v1.0.0/tmax-1.0.0.Setup.exe) |
-| **Windows** (portable) | [tmax-win32-x64-portable.zip](https://github.com/InbarR/tmax/releases/download/v1.0.0/tmax-win32-x64-portable.zip) |
-| **macOS** (Apple Silicon) | [tmax-1.0.0-arm64.dmg](https://github.com/InbarR/tmax/releases/download/v1.0.0/tmax-1.0.0-arm64.dmg) |
-| **macOS** (Intel) | [tmax-1.0.0-x64.dmg](https://github.com/InbarR/tmax/releases/download/v1.0.0/tmax-1.0.0-x64.dmg) |
-| **Linux** (.deb) | [tmax_1.0.0_amd64.deb](https://github.com/InbarR/tmax/releases/download/v1.0.0/tmax_1.0.0_amd64.deb) |
-| **Linux** (.rpm) | [tmax-1.0.0-1.x86_64.rpm](https://github.com/InbarR/tmax/releases/download/v1.0.0/tmax-1.0.0-1.x86_64.rpm) |
+Download the latest version from the [Releases page](https://github.com/InbarR/tmax/releases). Available for Windows (.exe installer + portable .zip), macOS (.dmg for Apple Silicon and Intel), and Linux (.deb, .rpm).
 
 ## Building from Source
 
