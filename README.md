@@ -19,6 +19,21 @@ Built with Electron, React, TypeScript, xterm.js, and node-pty.
 - Floating panels that can be dragged, resized, and maximized
 - Equalize all panes to the same size with one shortcut
 
+**Grid View Mode**
+- Toggle between Focus (single terminal) and Grid layout (`Ctrl+Shift+F`)
+- Grid auto-arranges terminals: 2x2, 3x2, etc. based on terminal count
+- Cycle grid column count with `Ctrl+Shift+L` (1-col stack, 2-col, 3-col, ...)
+- Fully resizable dividers in grid mode
+
+**AI Sessions Panel**
+- Monitor GitHub Copilot and Claude Code sessions in real-time (`Ctrl+Shift+C`)
+- Shows session status, summary, branch, repo, message/tool counts, and relative time
+- Click a session to resume it directly in a new terminal pane
+- Filter tabs: All / Copilot / Claude Code
+- Search across sessions by name, branch, cwd, or summary
+- Desktop notifications when a Copilot session needs approval or input
+- Sessions automatically filtered to last 7 days and deduplicated
+
 **Keyboard-Driven Workflow**
 - Command palette (`Ctrl+Shift+P`) with every action searchable
 - Jump to any terminal by name (`Ctrl+Shift+G`)
@@ -41,7 +56,7 @@ Built with Electron, React, TypeScript, xterm.js, and node-pty.
 - Re-record any keybinding by clicking it
 - Add/remove shell profiles (PowerShell, CMD, WSL, or any executable)
 - Set default start folder globally or per shell
-- 7 built-in color themes
+- 10 built-in color themes
 
 ## Keyboard Shortcuts
 
@@ -55,7 +70,10 @@ Built with Electron, React, TypeScript, xterm.js, and node-pty.
 | `Shift+Arrow` | Move focus between panes |
 | `Ctrl+Shift+Arrow` | Move/swap terminal in direction |
 | `Ctrl+Alt+Arrow` | Split in that direction |
-| `Ctrl+Shift+F` | Toggle float / dock |
+| `Ctrl+Shift+F` | Toggle view mode (Focus / Grid) |
+| `Ctrl+Shift+L` | Cycle grid column layout |
+| `Ctrl+Shift+C` | AI Sessions panel (Copilot / Claude) |
+| `Ctrl+Shift+D` | Directory favorites panel |
 | `Ctrl+Shift+E` | Equalize all pane sizes |
 | `Ctrl+Shift+Alt+Arrow` | Resize pane |
 | `Ctrl+=` / `Ctrl+-` | Zoom in / out |
@@ -132,17 +150,24 @@ Output per platform:
 ```
 src/
   main/           Electron main process
-    main.ts         Window creation, IPC handlers
-    pty-manager.ts  node-pty lifecycle management
-    config-store.ts electron-store config persistence
+    main.ts                     Window creation, IPC handlers
+    pty-manager.ts              node-pty lifecycle management
+    config-store.ts             electron-store config persistence
+    copilot-session-monitor.ts  Scans ~/.copilot/session-state/
+    copilot-session-watcher.ts  File watcher for Copilot sessions
+    copilot-events-parser.ts    Incremental JSONL parser for Copilot events
+    copilot-notification.ts     Desktop notifications for Copilot
+    claude-code-session-monitor.ts  Scans ~/.claude/projects/
+    claude-code-session-watcher.ts  File watcher for Claude Code sessions
+    claude-code-events-parser.ts    JSONL parser for Claude Code sessions
   preload/        Secure IPC bridge (contextBridge)
   renderer/       React UI
-    state/          Zustand store + binary tree layout engine
+    state/          Zustand store + binary tree / grid layout engine
     components/     Terminal, TabBar, TilingLayout, FloatingPanel,
-                    CommandPalette, Settings, DropZones, etc.
+                    CopilotPanel, CommandPalette, Settings, etc.
     hooks/          Keybindings, drag & drop, PTY helpers
     styles/         Global CSS (Catppuccin theme)
-  shared/         IPC channel constants
+  shared/         IPC channel constants, AI session types
 ```
 
 **Key design decisions:**
