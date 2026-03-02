@@ -1631,7 +1631,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       mode: 'tiled',
       pid,
       lastProcess: '',
-      startupCommand: `claude --resume`,
+      startupCommand: `claude --resume ${sessionId}`,
     };
 
     const { terminals, layout } = get();
