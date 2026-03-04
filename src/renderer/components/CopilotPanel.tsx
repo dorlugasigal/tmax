@@ -492,9 +492,6 @@ const CopilotPanel: React.FC = () => {
                   <span className="ai-provider-badge" data-provider={session.provider}>
                     {PROVIDER_LABEL[session.provider] || session.provider}
                   </span>
-                  {session.branch && (
-                    <span className="ai-branch-badge">{session.branch}</span>
-                  )}
                   {session.model && (
                     <span className="ai-session-stat">{session.model.replace(/^claude-/, '').replace(/-\d{8}$/, '')}</span>
                   )}

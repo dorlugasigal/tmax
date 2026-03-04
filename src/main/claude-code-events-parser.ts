@@ -142,10 +142,13 @@ function processLine(line: string, state: CacheEntry): void {
           if (parsed.message?.content) {
             for (const block of parsed.message.content) {
               if (block.type === 'text' && block.text) {
-                state.firstPrompt = block.text
-                  .slice(0, 120)
-                  .replace(/\n/g, ' ')
-                  .trim();
+                const text = block.text.trim();
+                // Skip system-generated interruption messages
+                if (!text.startsWith('[Request interrupted')) {
+                  state.firstPrompt = text
+                    .slice(0, 120)
+                    .replace(/\n/g, ' ');
+                }
                 break;
               }
             }
@@ -173,6 +176,24 @@ function processLine(line: string, state: CacheEntry): void {
         // Update branch (may change during session)
         const branchMatch = line.match(/"gitBranch"\s*:\s*"([^"]+)"/);
         if (branchMatch) state.gitBranch = branchMatch[1];
+
+        // If first prompt was an interruption, try later user messages
+        if (!state.firstPrompt) {
+          try {
+            const parsed = JSON.parse(line);
+            if (parsed.message?.content) {
+              for (const block of parsed.message.content) {
+                if (block.type === 'text' && block.text) {
+                  const text = block.text.trim();
+                  if (!text.startsWith('[Request interrupted')) {
+                    state.firstPrompt = text.slice(0, 120).replace(/\n/g, ' ');
+                  }
+                  break;
+                }
+              }
+            }
+          } catch { /* skip */ }
+        }
       }
       break;
     }
