@@ -86,6 +86,16 @@ const TerminalSettings: React.FC = () => {
           placeholder="e.g. C:\Projects"
           onChange={(e) => update({ defaultCwd: e.target.value } as any)} />
       </SettingRow>
+      <SettingRow label="Copilot Command" description="Base command for Copilot sessions (e.g., agency copilot, frodo)">
+        <input type="text" className="settings-input" value={config.copilotCommand || 'agency copilot'}
+          placeholder="agency copilot"
+          onChange={(e) => update({ copilotCommand: e.target.value } as any)} />
+      </SettingRow>
+      <SettingRow label="Claude Code Command" description="Base command for Claude Code sessions (e.g., claude)">
+        <input type="text" className="settings-input" value={config.claudeCodeCommand || 'claude'}
+          placeholder="claude"
+          onChange={(e) => update({ claudeCodeCommand: e.target.value } as any)} />
+      </SettingRow>
       <SettingRow label="Default Tab Color" description="Background tint for all terminals without a custom color">
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <input type="color" className="theme-color-picker"

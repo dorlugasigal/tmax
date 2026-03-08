@@ -49,6 +49,8 @@ export interface AppConfig {
   keybindings: Keybinding[];
   theme: ThemeColors;
   terminal: TerminalDefaults;
+  copilotCommand?: string;
+  claudeCodeCommand?: string;
 }
 
 function findPwsh(): string | null {
@@ -155,6 +157,8 @@ const defaultConfig: AppConfig = {
     fontFamily: 'CaskaydiaCove Nerd Font, CaskaydiaCove NF, Cascadia Code, Consolas, monospace',
     scrollback: 5000,
   },
+  copilotCommand: 'agency copilot',
+  claudeCodeCommand: 'claude',
 };
 
 export class ConfigStore {

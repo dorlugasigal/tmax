@@ -96,6 +96,8 @@ export interface AppConfig {
   keybindings: Keybinding[];
   theme: ThemeConfig;
   terminal: TerminalConfig;
+  copilotCommand?: string;
+  claudeCodeCommand?: string;
 }
 
 // ── Drag & drop ──────────────────────────────────────────────────────

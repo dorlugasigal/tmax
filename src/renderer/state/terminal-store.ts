@@ -1568,7 +1568,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       mode: 'tiled',
       pid,
       lastProcess: '',
-      startupCommand: `agency copilot --resume ${sessionId}`,
+      startupCommand: `${config.copilotCommand || 'agency copilot'} --resume ${sessionId}`,
       aiSessionId: sessionId,
     };
 
@@ -1719,7 +1719,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       mode: 'tiled',
       pid,
       lastProcess: '',
-      startupCommand: `claude --resume ${sessionId}`,
+      startupCommand: `${config.claudeCodeCommand || 'claude'} --resume ${sessionId}`,
       aiSessionId: sessionId,
     };
 

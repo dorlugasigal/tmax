@@ -33,6 +33,7 @@ Built with Electron, React, TypeScript, xterm.js, and node-pty.
 - Search across sessions by name, branch, cwd, or summary
 - Desktop notifications when a Copilot session needs approval or input
 - Sessions automatically filtered to last 7 days and deduplicated
+- Configurable base commands for Copilot and Claude Code sessions via Settings > Terminal
 
 **Keyboard-Driven Workflow**
 - Command palette (`Ctrl+Shift+P`) with every action searchable
@@ -174,6 +175,17 @@ Settings are stored at:
 ```
 
 You can edit this file directly or use the Settings UI (`Ctrl+,`).
+
+### AI Session Commands
+
+The commands used to resume Copilot and Claude Code sessions are configurable in **Settings > Terminal**:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Copilot Command | `agency copilot` | Base command for Copilot sessions |
+| Claude Code Command | `claude` | Base command for Claude Code sessions |
+
+This lets you use custom aliases (e.g., `frodo` instead of `agency copilot`) or wrapper scripts. The configured command is invoked as `<command> --resume <sessionId>`.
 
 ## License
 
