@@ -98,6 +98,7 @@ export interface AppConfig {
   terminal: TerminalConfig;
   copilotCommand?: string;
   claudeCodeCommand?: string;
+  tabBarPosition?: 'top' | 'bottom' | 'left' | 'right';
 }
 
 // ── Drag & drop ──────────────────────────────────────────────────────

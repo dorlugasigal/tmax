@@ -58,7 +58,22 @@ const Tab: React.FC<TabProps> = ({
   const isDetached = terminal?.mode === 'detached';
   const tabColor = terminal?.tabColor;
   const isSelected = useTerminalStore((s) => !!s.selectedTerminalIds[terminalId]);
-  const className = `tab${isActive ? ' active' : ''}${isDormant ? ' dormant' : ''}${isDetached ? ' detached' : ''}${isSelected ? ' selected' : ''}`;
+
+  // Check if this tab's AI session needs attention
+  const aiStatus = useTerminalStore((s) => {
+    const t = s.terminals.get(terminalId);
+    const sid = t?.aiSessionId;
+    if (!sid) return null;
+    const copilot = s.copilotSessions.find((x) => x.id === sid);
+    if (copilot) return copilot.status;
+    const claude = s.claudeCodeSessions.find((x) => x.id === sid);
+    if (claude) return claude.status;
+    return null;
+  });
+  const needsAttention = aiStatus === 'waitingForUser' || aiStatus === 'awaitingApproval';
+  const isThinking = aiStatus === 'thinking' || aiStatus === 'executingTool';
+
+  const className = `tab${isActive ? ' active' : ''}${isDormant ? ' dormant' : ''}${isDetached ? ' detached' : ''}${isSelected ? ' selected' : ''}${needsAttention ? ' needs-attention' : ''}${isThinking ? ' ai-thinking' : ''}`;
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -132,12 +147,40 @@ const Tab: React.FC<TabProps> = ({
   );
 };
 
-const TabBar: React.FC<{ vertical?: boolean }> = ({ vertical }) => {
+const TAB_BAR_MIN_WIDTH = 120;
+const TAB_BAR_MAX_WIDTH = 400;
+const TAB_BAR_DEFAULT_WIDTH = 160;
+
+const TabBar: React.FC<{ vertical?: boolean; side?: 'left' | 'right' }> = ({ vertical, side }) => {
   const terminals = useTerminalStore((s) => s.terminals);
   const focusedTerminalId = useTerminalStore((s) => s.focusedTerminalId);
   const renamingId = useTerminalStore((s) => s.renamingTerminalId);
   const tabMenuTerminalId = useTerminalStore((s) => s.tabMenuTerminalId);
   const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
+  const [tabBarWidth, setTabBarWidth] = useState(TAB_BAR_DEFAULT_WIDTH);
+  const [resizing, setResizing] = useState(false);
+
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = tabBarWidth;
+    setResizing(true);
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const delta = side === 'right' ? startX - moveEvent.clientX : moveEvent.clientX - startX;
+      const newWidth = Math.max(TAB_BAR_MIN_WIDTH, Math.min(TAB_BAR_MAX_WIDTH, startWidth + delta));
+      setTabBarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setResizing(false);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  }, [tabBarWidth]);
 
   // Open/toggle context menu from keyboard shortcut
   useEffect(() => {
@@ -173,7 +216,10 @@ const TabBar: React.FC<{ vertical?: boolean }> = ({ vertical }) => {
   const sortStrategy = vertical ? verticalListSortingStrategy : horizontalListSortingStrategy;
 
   return (
-    <div className={`tab-bar${vertical ? ' vertical' : ''}`}>
+    <div
+      className={`tab-bar${vertical ? ' vertical' : ''}${resizing ? ' resizing' : ''}`}
+      style={vertical ? { width: tabBarWidth, minWidth: tabBarWidth } : undefined}
+    >
       <SortableContext items={terminalIds} strategy={sortStrategy}>
         {terminalEntries.map(([id, terminal]) => (
           <Tab
@@ -197,6 +243,7 @@ const TabBar: React.FC<{ vertical?: boolean }> = ({ vertical }) => {
           onClose={() => setContextMenu(null)}
         />
       )}
+      {vertical && <div className="tab-bar-resize" onMouseDown={handleResizeStart} />}
     </div>
   );
 };

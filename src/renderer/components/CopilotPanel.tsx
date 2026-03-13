@@ -128,8 +128,8 @@ const CopilotPanel: React.FC = () => {
   // Merge, deduplicate, and filter sessions
   const filtered = useMemo(() => {
     let all = [
-      ...copilotSessions.map((s) => ({ ...s, provider: s.provider || 'copilot' as const })),
-      ...claudeCodeSessions.map((s) => ({ ...s, provider: s.provider || 'claude-code' as const })),
+      ...copilotSessions.filter((s) => s.messageCount > 0).map((s) => ({ ...s, provider: s.provider || 'copilot' as const })),
+      ...claudeCodeSessions.filter((s) => s.messageCount > 0).map((s) => ({ ...s, provider: s.provider || 'claude-code' as const })),
     ].map((s) => summaryOverrides[s.id] ? { ...s, summary: summaryOverrides[s.id] } : s);
 
     // Filter by provider tab
@@ -142,20 +142,10 @@ const CopilotPanel: React.FC = () => {
       all = all.filter((s) => s.status !== 'idle');
     }
 
-    // Filter by search query
-    if (query.trim()) {
-      const q = query.toLowerCase();
-      all = all.filter(
-        (s) =>
-          (s.summary || '').toLowerCase().includes(q) ||
-          s.repository.toLowerCase().includes(q) ||
-          s.branch.toLowerCase().includes(q) ||
-          s.cwd.toLowerCase().includes(q) ||
-          s.id.toLowerCase().includes(q),
-      );
-    }
+    // When searching, the backend already filters by prompts + metadata,
+    // so no additional local filtering needed
 
-    // Deduplicate by session ID (primary) and cwd+branch+provider (secondary)
+    // Deduplicate by session ID
     const byId = new Map<string, CopilotSessionSummary>();
     for (const s of all) {
       const existing = byId.get(s.id);
@@ -163,25 +153,8 @@ const CopilotPanel: React.FC = () => {
         byId.set(s.id, s);
       }
     }
-    // Also collapse same cwd+branch+provider to most recent (prefer ones with summaries)
-    const byKey = new Map<string, CopilotSessionSummary>();
-    for (const s of sortSessions(Array.from(byId.values()))) {
-      const key = `${s.provider}|${s.cwd}|${s.branch}`;
-      const existing = byKey.get(key);
-      if (!existing) {
-        byKey.set(key, s);
-      } else {
-        // Prefer session with summary; if both have or neither has, keep most recent
-        const existHasSummary = !!existing.summary;
-        const newHasSummary = !!s.summary;
-        if ((!existHasSummary && newHasSummary) ||
-            (existHasSummary === newHasSummary && (s.lastActivityTime || 0) > (existing.lastActivityTime || 0))) {
-          byKey.set(key, s);
-        }
-      }
-    }
 
-    return sortSessions(Array.from(byKey.values()));
+    return sortSessions(Array.from(byId.values()));
   }, [copilotSessions, claudeCodeSessions, query, filterTab, showRunningOnly, summaryOverrides]);
 
   useEffect(() => {
@@ -336,8 +309,8 @@ const CopilotPanel: React.FC = () => {
   if (!show) return null;
 
   // Counts for filter tabs (deduplicated)
-  const copilotCount = new Set(copilotSessions.map((s) => `${s.cwd}|${s.branch}`)).size;
-  const claudeCount = new Set(claudeCodeSessions.map((s) => `${s.cwd}|${s.branch}`)).size;
+  const copilotCount = copilotSessions.filter((s) => s.messageCount > 0).length;
+  const claudeCount = claudeCodeSessions.filter((s) => s.messageCount > 0).length;
   const allCount = copilotCount + claudeCount;
 
   return (
@@ -463,7 +436,7 @@ const CopilotPanel: React.FC = () => {
                   )}
                   {hasStats && (
                     <>
-                      <span className="ai-session-stat">{session.messageCount} msgs</span>
+                      <span className="ai-session-stat">{session.messageCount} prompts</span>
                       {session.toolCallCount > 0 && (
                         <span className="ai-session-stat">{session.toolCallCount} tools</span>
                       )}

@@ -306,7 +306,7 @@ interface TerminalStore {
   showShortcuts: boolean;
   showCommandPalette: boolean;
   showSettings: boolean;
-  tabBarPosition: 'top' | 'left';
+  tabBarPosition: 'top' | 'bottom' | 'left' | 'right';
   renamingTerminalId: TerminalId | null;
   viewMode: 'split' | 'focus' | 'grid';
   gridColumns: number; // 0 = auto (sqrt-based), 1..N = fixed column count
@@ -424,7 +424,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   tabMenuTerminalId: null,
   favoriteDirs: [],
   recentDirs: [],
-  tabBarPosition: 'top' as 'top' | 'left',
+  tabBarPosition: 'top' as 'top' | 'bottom' | 'left' | 'right',
   renamingTerminalId: null,
   viewMode: 'split' as 'split' | 'focus' | 'grid',
   gridColumns: 0,
@@ -437,7 +437,9 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   loadConfig: async () => {
     const config = (await window.terminalAPI.getConfig()) as unknown as AppConfig;
     if (config?.theme) applyThemeToChromeVars(config.theme);
-    set({ config });
+    const updates: Record<string, unknown> = { config };
+    if (config?.tabBarPosition) updates.tabBarPosition = config.tabBarPosition;
+    set(updates);
   },
 
   createTerminal: async (shellProfileId?: string) => {
@@ -1036,7 +1038,14 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   },
 
   toggleTabBarPosition: () => {
-    set((state) => ({ tabBarPosition: state.tabBarPosition === 'top' ? 'left' : 'top' }));
+    const newPos = get().tabBarPosition === 'top' ? 'left' : 'top';
+    set({ tabBarPosition: newPos });
+    get().updateConfig({ tabBarPosition: newPos } as any);
+  },
+
+  setTabBarPosition: (pos: 'top' | 'bottom' | 'left' | 'right') => {
+    set({ tabBarPosition: pos });
+    get().updateConfig({ tabBarPosition: pos } as any);
   },
 
   startRenaming: (id: TerminalId | null) => {
@@ -1526,6 +1535,15 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   },
 
   openCopilotSession: async (sessionId: string) => {
+    // If a terminal with this session is already open, just focus it
+    const { terminals: existingTerminals } = get();
+    for (const [id, inst] of existingTerminals) {
+      if (inst.aiSessionId === sessionId) {
+        set({ focusedTerminalId: id });
+        return;
+      }
+    }
+
     const session = await (window.terminalAPI as any).getCopilotSession(sessionId);
     if (!session) return;
 
@@ -1618,10 +1636,10 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       if (!matched && !alreadyLinked && !current.aiSessionId && session.cwd) {
         const proc = current.lastProcess.toLowerCase();
         const titleLower = current.title.toLowerCase();
-        const isClaude = (s: string) => s.includes('claude') || s === 'cc';
-        const isClaudeProcess = isClaude(proc) || isClaude(titleLower);
+        const isAiAgent = (s: string) => s.includes('claude') || s === 'cc' || s.includes('copilot') || s.includes('agency') || s.includes('frodo');
+        const isAiProcess = isAiAgent(proc) || isAiAgent(titleLower);
         const normCwd = (p: string) => p.replace(/[\\/]+$/, '').replace(/\\/g, '/').toLowerCase();
-        if (isClaudeProcess && normCwd(current.cwd) === normCwd(session.cwd)) {
+        if (isAiProcess && normCwd(current.cwd) === normCwd(session.cwd)) {
           // Link this terminal to the session
           current = { ...current, aiSessionId: session.id, aiAutoTitle: true, customTitle: true };
           newTerminals.set(id, current);
@@ -1682,6 +1700,15 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   },
 
   openClaudeCodeSession: async (sessionId: string) => {
+    // If a terminal with this session is already open, just focus it
+    const { terminals: existingTerminals } = get();
+    for (const [id, inst] of existingTerminals) {
+      if (inst.aiSessionId === sessionId) {
+        set({ focusedTerminalId: id });
+        return;
+      }
+    }
+
     const session = await (window.terminalAPI as any).getClaudeCodeSession(sessionId);
     if (!session) return;
 

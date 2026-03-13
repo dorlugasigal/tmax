@@ -164,6 +164,12 @@ export class ClaudeCodeSessionMonitor {
         summary.id.toLowerCase().includes(q)
       ) {
         results.push(summary);
+      } else {
+        // Search through prompts
+        const prompts = this.getPrompts(summary.id);
+        if (prompts.some((p) => p.toLowerCase().includes(q))) {
+          results.push(summary);
+        }
       }
     }
 

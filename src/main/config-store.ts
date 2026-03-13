@@ -51,6 +51,7 @@ export interface AppConfig {
   terminal: TerminalDefaults;
   copilotCommand?: string;
   claudeCodeCommand?: string;
+  tabBarPosition?: 'top' | 'bottom' | 'left' | 'right';
 }
 
 function findPwsh(): string | null {

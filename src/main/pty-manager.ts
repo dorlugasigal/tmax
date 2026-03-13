@@ -99,6 +99,15 @@ export class PtyManager {
     }
   }
 
+  /** Re-send current size to all PTYs to wake up stalled ConPTY pipes */
+  resizeAll(): void {
+    for (const [, pty] of this.ptys) {
+      try {
+        pty.resize(pty.cols, pty.rows);
+      } catch { /* ignore dead ptys */ }
+    }
+  }
+
   kill(id: string): void {
     const pty = this.ptys.get(id);
     if (pty) {

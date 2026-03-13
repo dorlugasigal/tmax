@@ -27,6 +27,11 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
 
   const handleFocus = useCallback(() => {
     useTerminalStore.getState().setFocus(terminalId);
+    // Always re-focus xterm textarea — the store won't trigger a re-focus
+    // if this panel is already the focused one (isFocused won't change)
+    try {
+      terminalRef.current?.focus();
+    } catch { /* terminal may be disposed */ }
   }, [terminalId]);
 
   useEffect(() => {
@@ -345,6 +350,26 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
     return () => window.removeEventListener('focus', handleWindowFocus);
   }, [isFocused]);
 
+  // Re-fit terminals and re-focus when returning from sleep/lock/idle
+  // This wakes up stalled ConPTY processes via the resize signal
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) return;
+      try {
+        if (fitAddonRef.current && terminalRef.current) {
+          fitAddonRef.current.fit();
+          const { cols, rows } = terminalRef.current;
+          window.terminalAPI.resizePty(terminalId, cols, rows);
+        }
+        if (isFocused && terminalRef.current) {
+          terminalRef.current.focus();
+        }
+      } catch { /* terminal may be disposed */ }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isFocused, terminalId]);
+
   // Apply tab color or default color as terminal background tint via CSS overlay
   const title = useTerminalStore((s) => s.terminals.get(terminalId)?.title);
   const tabColor = useTerminalStore((s) => s.terminals.get(terminalId)?.tabColor);
@@ -409,6 +434,21 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
       )}
       {title && <div className="terminal-pane-title">{title}</div>}
       <div ref={containerRef} className="xterm-container" />
+      <button
+        className="terminal-refocus-btn"
+        title="Re-focus terminal (use if stuck)"
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          try {
+            if (fitAddonRef.current) fitAddonRef.current.fit();
+            if (terminalRef.current) {
+              const { cols, rows } = terminalRef.current;
+              window.terminalAPI.resizePty(terminalId, cols, rows);
+              terminalRef.current.focus();
+            }
+          } catch { /* terminal may be disposed */ }
+        }}
+      >&#8635;</button>
       {bgTint && <div className="terminal-color-overlay" style={{ background: bgTint + '18' }} />}
     </div>
   );

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, powerMonitor, shell } from 'electron';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -436,6 +436,12 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
+  });
+
+  // Wake up ConPTY processes after system resume from sleep/hibernate
+  powerMonitor.on('resume', () => {
+    console.log('System resumed from sleep, pinging all PTYs');
+    ptyManager?.resizeAll();
   });
 });
 

@@ -46,6 +46,23 @@ const TabContextMenu: React.FC<TabContextMenuProps> = ({ position, onClose }) =>
     };
   }, [onClose]);
 
+  // Adjust position if menu overflows viewport
+  const [adjustedPos, setAdjustedPos] = useState({ x: position.x, y: position.y });
+  useEffect(() => {
+    if (!menuRef.current) return;
+    const rect = menuRef.current.getBoundingClientRect();
+    let { x, y } = position;
+    if (rect.bottom > window.innerHeight) {
+      y = position.y - rect.height;
+    }
+    if (rect.right > window.innerWidth) {
+      x = position.x - rect.width;
+    }
+    if (x !== adjustedPos.x || y !== adjustedPos.y) {
+      setAdjustedPos({ x, y });
+    }
+  }, [position]);
+
   // Focus input when renaming
   useEffect(() => {
     if (renaming && inputRef.current) {
@@ -139,7 +156,7 @@ const TabContextMenu: React.FC<TabContextMenuProps> = ({ position, onClose }) =>
     <div
       ref={menuRef}
       className="context-menu"
-      style={{ left: position.x, top: position.y }}
+      style={{ left: adjustedPos.x, top: adjustedPos.y }}
     >
       {renaming ? (
         <div className="context-menu-rename">
@@ -268,6 +285,26 @@ const TabContextMenu: React.FC<TabContextMenuProps> = ({ position, onClose }) =>
             </>
           )}
           <div className="context-menu-separator" />
+          <div className="context-menu-label">Tab Bar Position</div>
+          {(['top', 'bottom', 'left', 'right'] as const).map((pos) => (
+            <button key={pos} className={`context-menu-item sub${store().tabBarPosition === pos ? ' active-check' : ''}`} onClick={() => {
+              (store() as any).setTabBarPosition(pos);
+              onClose();
+            }}>
+              {pos.charAt(0).toUpperCase() + pos.slice(1)} {store().tabBarPosition === pos ? '\u2713' : ''}
+            </button>
+          ))}
+          <div className="context-menu-separator" />
+          <button className="context-menu-item" onClick={() => {
+            // Force re-focus and resize-ping all PTYs to unfreeze
+            for (const [id] of store().terminals) {
+              window.terminalAPI.resizePty(id, 80, 24).catch(() => {});
+            }
+            store().setFocus(position.terminalId);
+            onClose();
+          }}>
+            Unfreeze Terminal
+          </button>
           <button className="context-menu-item" onClick={() => {
             onClose();
             store().toggleCommandPalette();

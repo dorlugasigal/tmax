@@ -111,6 +111,19 @@ body,
   outline-offset: -2px;
 }
 
+.tab.needs-attention {
+  animation: tab-attention 1.5s ease-in-out infinite;
+  border-bottom: 2px solid #f9e2af;
+}
+
+.tab.ai-thinking {
+  border-bottom: 2px solid #89b4fa;
+}
+
+@keyframes tab-attention {
+  0%, 100% { background: var(--tab-bg); }
+  50% { background: rgba(249, 226, 175, 0.2); }
+}
 
 .tab .tab-title {
   overflow: hidden;
@@ -194,10 +207,15 @@ body,
   color: var(--text-primary);
 }
 
-/* ===== Vertical Tab Bar ===== */
-.app-shell.tab-bar-left {
+/* ===== Content Row (wraps tab bar + main area so status bar stays at bottom) ===== */
+.content-row {
+  flex: 1;
+  display: flex;
   flex-direction: row;
+  overflow: hidden;
 }
+
+/* ===== Vertical Tab Bar ===== */
 
 .tab-bar.vertical {
   flex-direction: column;
@@ -224,11 +242,51 @@ body,
   border-top: none;
 }
 
+.app-shell.tab-bar-right .tab-bar.vertical .tab.active {
+  border-left: none;
+  border-right: 3px solid var(--focus-border);
+}
+
+.app-shell.tab-bar-right .tab-bar.vertical {
+  border-right: none;
+  border-left: 1px solid var(--border-color);
+}
+
+.app-shell.tab-bar-right .tab-bar-resize {
+  left: -3px;
+  right: auto;
+}
+
 .tab-bar.vertical .tab-add {
   width: 100%;
   min-width: unset;
   height: 36px;
   border-bottom: 1px solid var(--border-color);
+}
+
+.tab-bar.vertical {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.tab-bar-resize {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+}
+
+.tab-bar-resize:hover,
+.tab-bar.resizing .tab-bar-resize {
+  background: var(--accent-color, #89b4fa);
+  opacity: 0.5;
+}
+
+.tab-bar.resizing {
+  user-select: none;
 }
 
 /* ===== Main Area (dir panel + layout) ===== */
@@ -320,6 +378,36 @@ body,
 
 .terminal-panel:hover .terminal-pane-title {
   opacity: 1;
+}
+
+.terminal-refocus-btn {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  z-index: 100;
+  background: rgba(49, 50, 68, 0.9);
+  border: 1px solid rgba(137, 180, 250, 0.3);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1;
+  padding: 3px 6px;
+  cursor: pointer;
+  opacity: 0.3;
+  transition: opacity 0.2s;
+  pointer-events: auto;
+}
+
+.terminal-refocus-btn:hover {
+  opacity: 1;
+  color: var(--text-primary);
+  border-color: var(--focus-border);
+  background: rgba(49, 50, 68, 1);
+}
+
+/* Shift pane title left when refocus button is visible */
+.terminal-panel:hover .terminal-pane-title {
+  right: 36px;
 }
 
 .terminal-panel .xterm-container {

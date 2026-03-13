@@ -142,24 +142,29 @@ const App: React.FC = () => {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className={`app-shell ${tabBarPosition === 'left' ? 'tab-bar-left' : ''}`}>
-        <TabBar vertical={tabBarPosition === 'left'} />
-        <div className="main-area">
-          <DirPanel />
-          <CopilotPanel />
-          <div className="layout-area">
-            <TilingLayout />
-            <FloatingLayer />
-          <DragOverlay>
-            {activeId && draggedTerminal ? (
-              <div className="drag-overlay-tab">
-                {draggedTerminal.title}
-              </div>
-            ) : null}
-          </DragOverlay>
-            <DropZoneOverlay />
+      <div className={`app-shell tab-bar-${tabBarPosition}`}>
+        {tabBarPosition === 'top' && <TabBar />}
+        <div className="content-row">
+          {tabBarPosition === 'left' && <TabBar vertical />}
+          <div className="main-area">
+            <DirPanel />
+            <CopilotPanel />
+            <div className="layout-area">
+              <TilingLayout />
+              <FloatingLayer />
+            <DragOverlay>
+              {activeId && draggedTerminal ? (
+                <div className="drag-overlay-tab">
+                  {draggedTerminal.title}
+                </div>
+              ) : null}
+            </DragOverlay>
+              <DropZoneOverlay />
+            </div>
           </div>
+          {tabBarPosition === 'right' && <TabBar vertical side="right" />}
         </div>
+        {tabBarPosition === 'bottom' && <TabBar />}
         <StatusBar />
         <TerminalSwitcher />
         <CommandPalette />

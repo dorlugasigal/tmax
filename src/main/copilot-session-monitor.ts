@@ -144,6 +144,12 @@ export class CopilotSessionMonitor {
         session.id.toLowerCase().includes(q)
       ) {
         results.push(this.toSummary(session));
+      } else {
+        // Search through prompts
+        const prompts = this.getPrompts(session.id);
+        if (prompts.some((p) => p.toLowerCase().includes(q))) {
+          results.push(this.toSummary(session));
+        }
       }
     }
 
