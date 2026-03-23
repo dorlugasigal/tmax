@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, powerMonitor, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, powerMonitor, session, shell } from 'electron';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -53,6 +53,7 @@ let copilotWatcher: CopilotSessionWatcher | null = null;
 let claudeCodeMonitor: ClaudeCodeSessionMonitor | null = null;
 let claudeCodeWatcher: ClaudeCodeSessionWatcher | null = null;
 let versionChecker: VersionChecker | null = null;
+let clipboardTempDir: string | null = null;
 const sessionStore = new Store({ name: 'tmax-session' });
 const detachedWindows = new Map<string, BrowserWindow>();
 
@@ -83,6 +84,23 @@ function createWindow(): void {
   });
 
   mainWindow.setMenuBarVisibility(false);
+
+  // Content-Security-Policy — prevent XSS, eval, and unauthorized remote resources
+  const isDev = !!MAIN_WINDOW_VITE_DEV_SERVER_URL;
+  const scriptSrc = isDev ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'" : "script-src 'self'";
+  const connectSrc = isDev ? "connect-src 'self' ws://localhost:* http://localhost:*" : "connect-src 'self'";
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          `default-src 'self'; ${scriptSrc}; style-src 'self' 'unsafe-inline'; ` +
+          `img-src 'self' data:; font-src 'self' data:; ${connectSrc}; ` +
+          `object-src 'none'; base-uri 'none';`,
+        ],
+      },
+    });
+  });
 
   mainWindow.once('ready-to-show', () => {
     console.log('Window ready-to-show, displaying...');
@@ -173,7 +191,16 @@ function registerIpcHandlers(): void {
   ipcMain.handle(
     IPC.PTY_CREATE,
     (_event, opts: { id: string; shellPath: string; args: string[]; cwd: string; env?: Record<string, string>; cols: number; rows: number }) => {
-      return ptyManager!.create(opts);
+      // Validate shell path against configured profiles to prevent arbitrary exec
+      const shells = configStore!.get('shells');
+      const profile = shells.find((s: { path: string }) => s.path === opts.shellPath);
+      if (!profile) {
+        throw new Error(`Shell path not in configured profiles: ${opts.shellPath}`);
+      }
+      // Clamp cols/rows to reasonable bounds
+      const cols = Math.max(1, Math.min(500, opts.cols || 80));
+      const rows = Math.max(1, Math.min(200, opts.rows || 24));
+      return ptyManager!.create({ ...opts, args: profile.args, cols, rows });
     }
   );
 
@@ -376,11 +403,13 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IPC.CLIPBOARD_SAVE_IMAGE, (_event, base64Png: string) => {
-    const dir = path.join(os.tmpdir(), 'tmax-clipboard');
-    fs.mkdirSync(dir, { recursive: true });
+    if (!clipboardTempDir) {
+      clipboardTempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tmax-clipboard-'));
+    }
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filePath = path.join(dir, `clipboard-${timestamp}.png`);
-    fs.writeFileSync(filePath, Buffer.from(base64Png, 'base64'));
+    const rand = Math.random().toString(36).slice(2, 10);
+    const filePath = path.join(clipboardTempDir, `clipboard-${timestamp}-${rand}.png`);
+    fs.writeFileSync(filePath, Buffer.from(base64Png, 'base64'), { mode: 0o600 });
     return filePath;
   });
 }
@@ -493,6 +522,10 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', async () => {
+  // Clean up clipboard temp dir
+  if (clipboardTempDir) {
+    try { fs.rmSync(clipboardTempDir, { recursive: true }); } catch { /* ignore */ }
+  }
   ptyManager?.killAll();
   await copilotWatcher?.stop();
   copilotMonitor?.dispose();

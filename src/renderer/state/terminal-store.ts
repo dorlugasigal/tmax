@@ -358,6 +358,7 @@ interface TerminalStore {
   reorderTerminals: (draggedId: TerminalId, overId: TerminalId) => void;
   moveToFloat: (id: TerminalId) => void;
   moveToTiling: (id: TerminalId, targetId?: TerminalId, side?: 'left' | 'right' | 'top' | 'bottom') => void;
+  insertAtRoot: (id: TerminalId, side: 'left' | 'right' | 'top' | 'bottom') => void;
   moveToDormant: (id: TerminalId) => void;
   wakeFromDormant: (id: TerminalId) => void;
   detachTerminal: (id: TerminalId) => Promise<void>;
@@ -406,7 +407,7 @@ interface TerminalStore {
   searchCopilotSessions: (query: string) => Promise<void>;
   openCopilotSession: (sessionId: string) => Promise<void>;
   setCopilotSessions: (sessions: CopilotSessionSummary[]) => void;
-  updateTerminalTitleFromSession: (session: CopilotSessionSummary) => void;
+  updateTerminalTitleFromSession: (session: CopilotSessionSummary, sessionType?: 'copilot' | 'claude') => void;
   addCopilotSession: (session: CopilotSessionSummary) => void;
   updateCopilotSession: (session: CopilotSessionSummary) => void;
   removeCopilotSession: (sessionId: string) => void;
@@ -822,6 +823,39 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       const lastId = order[order.length - 1];
       newRoot = insertLeaf(layout.tilingRoot, lastId, id, 'right');
     }
+
+    const updatedInstance: TerminalInstance = { ...instance, mode: 'tiled' };
+    const newTerminals = new Map(terminals);
+    newTerminals.set(id, updatedInstance);
+
+    set({
+      terminals: newTerminals,
+      layout: { tilingRoot: newRoot, floatingPanels: newFloating },
+      focusedTerminalId: id,
+    });
+  },
+
+  insertAtRoot: (id: TerminalId, side: 'left' | 'right' | 'top' | 'bottom') => {
+    const { terminals, layout } = get();
+    if (!layout.tilingRoot) return;
+    const instance = terminals.get(id);
+    if (!instance) return;
+
+    // Remove from floating panels (moveToFloat was called before this)
+    const newFloating = layout.floatingPanels.filter((p) => p.terminalId !== id);
+
+    const direction: SplitDirection = (side === 'left' || side === 'right') ? 'horizontal' : 'vertical';
+    const newLeaf: LayoutLeafNode = { kind: 'leaf', terminalId: id };
+    const isFirst = side === 'left' || side === 'top';
+
+    const newRoot: LayoutSplitNode = {
+      kind: 'split',
+      id: uuidv4(),
+      direction,
+      splitRatio: 0.5,
+      first: isFirst ? newLeaf : layout.tilingRoot,
+      second: isFirst ? layout.tilingRoot : newLeaf,
+    };
 
     const updatedInstance: TerminalInstance = { ...instance, mode: 'tiled' };
     const newTerminals = new Map(terminals);

@@ -19,6 +19,7 @@ export interface PtyCallbacks {
 }
 
 // Electron injects env vars that break Node.js child processes (npm, npx, etc.)
+// Security-sensitive vars that could hijack spawned shells are also blocked.
 const ELECTRON_ENV_BLOCKLIST = new Set([
   'ELECTRON_RUN_AS_NODE',
   'ELECTRON_NO_ASAR',
@@ -32,6 +33,13 @@ const ELECTRON_ENV_BLOCKLIST = new Set([
   'GOOGLE_DEFAULT_CLIENT_SECRET',
   'ORIGINAL_XDG_CURRENT_DESKTOP',
   'NODE_OPTIONS',
+  // Security: prevent library injection via spawned shells
+  'LD_PRELOAD',
+  'LD_LIBRARY_PATH',
+  'DYLD_INSERT_LIBRARIES',
+  'DYLD_LIBRARY_PATH',
+  'DYLD_FRAMEWORK_PATH',
+  'NODE_EXTRA_CA_CERTS',
 ]);
 
 function sanitizeEnv(env: Record<string, string>): Record<string, string> {

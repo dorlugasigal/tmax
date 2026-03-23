@@ -1,4 +1,5 @@
 import React from 'react';
+import { useDroppable } from '@dnd-kit/core';
 import { useTerminalStore } from '../state/terminal-store';
 import type { LayoutNode, LayoutSplitNode } from '../state/types';
 import TerminalPanel from './TerminalPanel';
@@ -60,6 +61,29 @@ const TilingNode: React.FC<TilingNodeProps> = ({ node }) => {
   );
 };
 
+/** Thin drop zone on the edge of the layout area for full-height/width drops */
+const RootEdgeZone: React.FC<{ side: string; className: string; label: string }> = ({ side, className, label }) => {
+  const { isOver, setNodeRef } = useDroppable({ id: `drop:root:${side}` });
+  return (
+    <div ref={setNodeRef} className={`root-edge-zone ${className}${isOver ? ' active' : ''}`}>
+      {isOver && <span className="drop-label">{label}</span>}
+    </div>
+  );
+};
+
+const RootDropZones: React.FC = () => {
+  const isDragging = useTerminalStore((s) => s.isDragging);
+  if (!isDragging) return null;
+  return (
+    <>
+      <RootEdgeZone side="left" className="root-zone-left" label="← Full Left" />
+      <RootEdgeZone side="right" className="root-zone-right" label="Full Right →" />
+      <RootEdgeZone side="top" className="root-zone-top" label="↑ Full Top" />
+      <RootEdgeZone side="bottom" className="root-zone-bottom" label="Full Bottom ↓" />
+    </>
+  );
+};
+
 const TilingLayout: React.FC = () => {
   const tilingRoot = useTerminalStore((s) => s.layout.tilingRoot);
   const viewMode = useTerminalStore((s) => s.viewMode);
@@ -81,6 +105,7 @@ const TilingLayout: React.FC = () => {
   return (
     <div className={viewMode === 'focus' ? 'tiling-focus-mode' : 'tiling-normal-mode'}>
       <TilingNode node={tilingRoot} />
+      <RootDropZones />
     </div>
   );
 };

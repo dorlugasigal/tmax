@@ -316,6 +316,7 @@ body,
   flex: 1;
   position: relative;
   overflow: hidden;
+  /* Establish positioning context for root edge drop zones */
 }
 
 /* ===== Split Container ===== */
@@ -835,6 +836,35 @@ body,
   border-radius: 4px;
   pointer-events: none;
   white-space: nowrap;
+}
+
+/* ===== Root Edge Drop Zones (full-height/width splits) ===== */
+/* These sit on the edges of the entire layout area so you can drag a pane to
+   span the full height or width by wrapping the root of the layout tree. */
+.root-edge-zone {
+  position: absolute;
+  z-index: 60;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s ease, box-shadow 0.12s ease;
+}
+.root-zone-left {
+  left: 0; top: 0; width: 18px; height: 100%;
+}
+.root-zone-right {
+  right: 0; top: 0; width: 18px; height: 100%;
+}
+.root-zone-top {
+  left: 18px; top: 0; width: calc(100% - 36px); height: 18px;
+}
+.root-zone-bottom {
+  left: 18px; bottom: 0; width: calc(100% - 36px); height: 18px;
+}
+.root-edge-zone.active {
+  background: rgba(166, 227, 161, 0.3);
+  box-shadow: inset 0 0 0 3px #a6e3a1;
 }
 
 /* ===== Global Float Drop Zone ===== */
