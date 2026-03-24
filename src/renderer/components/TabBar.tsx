@@ -52,8 +52,7 @@ const Tab: React.FC<TabProps> = ({
     if (e.key === 'Escape') useTerminalStore.getState().startRenaming(null);
   }, [handleRenameSubmit]);
 
-  const terminals = useTerminalStore((s) => s.terminals);
-  const terminal = terminals.get(terminalId);
+  const terminal = useTerminalStore((s) => s.terminals.get(terminalId));
   const isDormant = terminal?.mode === 'dormant';
   const isDetached = terminal?.mode === 'detached';
   const tabColor = terminal?.tabColor;
@@ -61,14 +60,14 @@ const Tab: React.FC<TabProps> = ({
   const isInGrid = useTerminalStore((s) => !!s.gridTabIds[terminalId]);
   const viewMode = useTerminalStore((s) => s.viewMode);
 
-  // Check if this tab's AI session needs attention
+  // Check if this tab's AI session needs attention.
+  // Selector returns a primitive string so Zustand skips re-render when status is unchanged.
+  const aiSessionId = terminal?.aiSessionId;
   const aiStatus = useTerminalStore((s) => {
-    const t = s.terminals.get(terminalId);
-    const sid = t?.aiSessionId;
-    if (!sid) return null;
-    const copilot = s.copilotSessions.find((x) => x.id === sid);
+    if (!aiSessionId) return null;
+    const copilot = s.copilotSessions.find((x) => x.id === aiSessionId);
     if (copilot) return copilot.status;
-    const claude = s.claudeCodeSessions.find((x) => x.id === sid);
+    const claude = s.claudeCodeSessions.find((x) => x.id === aiSessionId);
     if (claude) return claude.status;
     return null;
   });
