@@ -109,7 +109,7 @@ Download the latest version from the [Releases page](https://github.com/InbarR/t
 
 - Node.js 18+
 - npm
-- **Windows**: Visual Studio Build Tools (for node-pty native compilation)
+- **Windows**: [Visual Studio 2022 Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022) with "Desktop development with C++" workload (for node-pty native compilation). VS 2025+ is not yet supported by node-gyp — if you only have VS 2025, install the 2022 Build Tools alongside it and set `GYP_MSVS_VERSION=2022` before running `npm install`.
 - **macOS**: Xcode Command Line Tools (`xcode-select --install`)
 - **Linux**: `build-essential`, `python3`, `libx11-dev`, `libxkbfile-dev`
 
