@@ -108,11 +108,11 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
     // Ensure DEC focus reporting reaches the PTY even if xterm.js lost
     // its internal focus-reporting state (e.g. after a pane split/resize).
     // Without this, Copilot CLI stays in isFocused=false and drops input.
-    if (prevFocused !== terminalId) {
-      if (prevFocused) {
-        window.terminalAPI.writePty(prevFocused, '\x1b[O');
-        window.terminalAPI.diagLog('renderer:focus-inject-out', { terminalId: prevFocused });
-      }
+    // Only inject when actually switching between two terminals — not on
+    // first focus (prevFocused=null) to avoid stray sequences.
+    if (prevFocused && prevFocused !== terminalId) {
+      window.terminalAPI.writePty(prevFocused, '\x1b[O');
+      window.terminalAPI.diagLog('renderer:focus-inject-out', { terminalId: prevFocused });
       window.terminalAPI.writePty(terminalId, '\x1b[I');
       window.terminalAPI.diagLog('renderer:focus-inject-in', { terminalId });
     }

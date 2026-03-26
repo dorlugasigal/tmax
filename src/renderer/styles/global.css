@@ -530,6 +530,11 @@ body,
   overflow: hidden;
 }
 
+/* Hide xterm scrollbar to prevent right-edge flicker */
+.terminal-panel .xterm-container .xterm-viewport::-webkit-scrollbar {
+  width: 0;
+}
+
 .terminal-panel .xterm-container .xterm {
   padding: 4px;
 }
