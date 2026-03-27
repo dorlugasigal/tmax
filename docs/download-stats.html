@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tmax Download Stats</title>
+<style>
+  :root { --bg: #1e1e2e; --surface: #313244; --border: #45475a; --text: #cdd6f4; --dim: #a6adc8; --accent: #89b4fa; --green: #a6e3a1; --yellow: #f9e2af; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 24px; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  .subtitle { color: var(--dim); margin-bottom: 24px; font-size: 14px; }
+  .subtitle a { color: var(--accent); text-decoration: none; }
+  .summary { display: flex; gap: 16px; margin-bottom: 24px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; flex: 1; }
+  .stat-card .label { font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card .value { font-size: 28px; font-weight: 700; color: var(--accent); margin-top: 4px; }
+  .stat-card .value.green { color: var(--green); }
+  .release { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 16px; overflow: hidden; }
+  .release-header { padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .release-header:hover { background: rgba(137,180,250,0.05); }
+  .release-tag { font-weight: 600; font-size: 16px; }
+  .release-tag .latest { background: var(--green); color: var(--bg); font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-left: 8px; font-weight: 600; }
+  .release-date { color: var(--dim); font-size: 13px; }
+  .release-total { color: var(--yellow); font-weight: 600; }
+  .release-body { padding: 0; }
+  .release-body.hidden { display: none; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 8px 16px; font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+  th:last-child { text-align: right; }
+  td { padding: 6px 16px; font-size: 14px; border-bottom: 1px solid rgba(69,71,90,0.4); }
+  td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: none; }
+  .zero { color: #585b70; }
+  .loading { text-align: center; padding: 48px; color: var(--dim); }
+  .platform-icon { margin-right: 6px; }
+  .filter-bar { display: flex; gap: 8px; margin-bottom: 16px; }
+  .filter-btn { background: var(--surface); border: 1px solid var(--border); color: var(--dim); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .filter-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+</style>
+</head>
+<body>
+
+<h1>tmax Download Stats</h1>
+<div class="subtitle"><a href="https://github.com/InbarR/tmax">github.com/InbarR/tmax</a></div>
+
+<div class="summary">
+  <div class="stat-card"><div class="label">Total Downloads</div><div class="value green" id="total">-</div></div>
+  <div class="stat-card"><div class="label">Auto-Updates</div><div class="value" id="updates">-</div></div>
+  <div class="stat-card"><div class="label">Manual Installs</div><div class="value" id="manual">-</div></div>
+  <div class="stat-card"><div class="label">Releases</div><div class="value" id="releases">-</div></div>
+</div>
+
+<div class="filter-bar">
+  <button class="filter-btn active" data-filter="all">All</button>
+  <button class="filter-btn" data-filter="windows">Windows</button>
+  <button class="filter-btn" data-filter="macos">macOS</button>
+  <button class="filter-btn" data-filter="linux">Linux</button>
+</div>
+
+<div id="content"><div class="loading">Loading...</div></div>
+
+<script>
+const REPO = 'InbarR/tmax';
+// Assets to exclude from real download counts (auto-update manifest, not actual downloads)
+const EXCLUDED = new Set(['RELEASES']);
+
+function platformOf(name) {
+  if (/win32|\.exe$|\.nupkg$|RELEASES/i.test(name)) return 'windows';
+  if (/darwin|\.dmg$/i.test(name)) return 'macos';
+  if (/linux|\.deb$|\.rpm$/i.test(name)) return 'linux';
+  return 'other';
+}
+
+function platformIcon(p) {
+  if (p === 'windows') return '\u{1FA9F}';
+  if (p === 'macos') return '\uD83C\uDF4E';
+  if (p === 'linux') return '\uD83D\uDC27';
+  return '\uD83D\uDCE6';
+}
+
+function relativeDate(d) {
+  const diff = (Date.now() - new Date(d).getTime()) / 1000;
+  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+  return Math.floor(diff / 86400) + 'd ago';
+}
+
+let allData = [];
+let activeFilter = 'all';
+
+async function load() {
+  const resp = await fetch(`https://api.github.com/repos/${REPO}/releases?per_page=30`);
+  const releases = await resp.json();
+  allData = releases;
+
+  let totalAll = 0, totalUpdates = 0, totalManual = 0;
+  for (const r of releases) {
+    for (const a of r.assets) {
+      if (EXCLUDED.has(a.name)) continue;
+      totalAll += a.download_count;
+      if (/\.nupkg$/.test(a.name)) totalUpdates += a.download_count;
+      else totalManual += a.download_count;
+    }
+  }
+
+  document.getElementById('total').textContent = totalAll.toLocaleString();
+  document.getElementById('updates').textContent = totalUpdates.toLocaleString();
+  document.getElementById('manual').textContent = totalManual.toLocaleString();
+  document.getElementById('releases').textContent = releases.length;
+
+  render();
+}
+
+function render() {
+  const container = document.getElementById('content');
+  container.innerHTML = '';
+
+  for (let i = 0; i < allData.length; i++) {
+    const r = allData[i];
+    const assets = r.assets
+      .filter(a => !EXCLUDED.has(a.name))
+      .filter(a => activeFilter === 'all' || platformOf(a.name) === activeFilter)
+      .sort((a, b) => b.download_count - a.download_count);
+
+    const total = assets.reduce((s, a) => s + a.download_count, 0);
+
+    const div = document.createElement('div');
+    div.className = 'release';
+    div.innerHTML = `
+      <div class="release-header" onclick="this.nextElementSibling.classList.toggle('hidden')">
+        <span>
+          <span class="release-tag">${r.tag_name}${i === 0 ? '<span class="latest">Latest</span>' : ''}</span>
+          <span class="release-date" style="margin-left:12px">${relativeDate(r.published_at)}</span>
+        </span>
+        <span class="release-total">${total.toLocaleString()} downloads</span>
+      </div>
+      <div class="release-body${i > 0 ? ' hidden' : ''}">
+        <table>
+          <thead><tr><th>Asset</th><th>Downloads</th></tr></thead>
+          <tbody>
+            ${assets.map(a => `<tr>
+              <td><span class="platform-icon">${platformIcon(platformOf(a.name))}</span>${a.name}</td>
+              <td class="${a.download_count === 0 ? 'zero' : ''}">${a.download_count.toLocaleString()}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    container.appendChild(div);
+  }
+}
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.filter;
+    render();
+  });
+});
+
+load();
+</script>
+</body>
+</html>
