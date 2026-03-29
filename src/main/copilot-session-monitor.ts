@@ -16,6 +16,7 @@ export interface CopilotMonitorCallbacks {
 
 export class CopilotSessionMonitor {
   private sessions = new Map<string, CopilotSession>();
+  private sessionBasePaths = new Map<string, string>(); // sessionId → basePath where it was loaded from
   private callbacks: CopilotMonitorCallbacks = {};
   private readonly basePath: string;
 
@@ -31,58 +32,67 @@ export class CopilotSessionMonitor {
     return this.basePath;
   }
 
+  addExtraBasePath(p: string): void {
+    if (!this.extraBasePaths.includes(p)) this.extraBasePaths.push(p);
+  }
+
+  private extraBasePaths: string[] = [];
+
   scanSessions(): CopilotSessionSummary[] {
     const summaries: CopilotSessionSummary[] = [];
-
-    if (!fs.existsSync(this.basePath)) {
-      return summaries;
-    }
-
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(this.basePath, { withFileTypes: true });
-    } catch {
-      return summaries;
-    }
+    const allBasePaths = [this.basePath, ...this.extraBasePaths];
 
     const currentIds = new Set<string>();
     const maxAgeMs = 7 * 24 * 60 * 60 * 1000; // 7 days
     const cutoff = Date.now() - maxAgeMs;
 
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
+    for (const base of allBasePaths) {
+      if (!fs.existsSync(base)) continue;
 
-      const sessionId = entry.name;
-      const sessionDir = path.join(this.basePath, sessionId);
-
-      // Quick recency check via workspace.yaml mtime before full parse
-      const wsPath = path.join(sessionDir, 'workspace.yaml');
+      let entries: fs.Dirent[];
       try {
-        const stat = fs.statSync(wsPath);
-        if (stat.mtimeMs < cutoff) continue;
+        entries = fs.readdirSync(base, { withFileTypes: true });
       } catch {
-        // No workspace.yaml — check events.jsonl
-        const evPath = path.join(sessionDir, 'events.jsonl');
-        try {
-          const stat = fs.statSync(evPath);
-          if (stat.mtimeMs < cutoff) continue;
-        } catch {
-          continue;
-        }
+        continue;
       }
 
-      currentIds.add(sessionId);
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
 
-      const session = this.loadSession(sessionId, sessionDir);
+        const sessionId = entry.name;
+        if (currentIds.has(sessionId)) continue; // already found in a higher-priority path
+        const sessionDir = path.join(base, sessionId);
 
-      if (session) {
-        const isNew = !this.sessions.has(sessionId);
-        this.sessions.set(sessionId, session);
-        const summary = this.toSummary(session);
-        summaries.push(summary);
+        // Quick recency check via workspace.yaml mtime before full parse
+        const wsPath = path.join(sessionDir, 'workspace.yaml');
+        try {
+          const stat = fs.statSync(wsPath);
+          if (stat.mtimeMs < cutoff) continue;
+        } catch {
+          // No workspace.yaml — check events.jsonl
+          const evPath = path.join(sessionDir, 'events.jsonl');
+          try {
+            const stat = fs.statSync(evPath);
+            if (stat.mtimeMs < cutoff) continue;
+          } catch {
+            continue;
+          }
+        }
 
-        if (isNew) {
-          this.callbacks.onSessionAdded?.(summary);
+        currentIds.add(sessionId);
+
+        const session = this.loadSession(sessionId, sessionDir);
+
+        if (session) {
+          const isNew = !this.sessions.has(sessionId);
+          this.sessions.set(sessionId, session);
+          if (base !== this.basePath) this.sessionBasePaths.set(sessionId, base);
+          const summary = this.toSummary(session);
+          summaries.push(summary);
+
+          if (isNew) {
+            this.callbacks.onSessionAdded?.(summary);
+          }
         }
       }
     }
@@ -103,8 +113,8 @@ export class CopilotSessionMonitor {
     return this.sessions.get(id) ?? null;
   }
 
-  refreshSession(id: string): CopilotSessionSummary | null {
-    const sessionDir = path.join(this.basePath, id);
+  refreshSession(id: string, basePath?: string): CopilotSessionSummary | null {
+    const sessionDir = path.join(basePath || this.basePath, id);
     if (!fs.existsSync(sessionDir)) {
       if (this.sessions.has(id)) {
         this.sessions.delete(id);
@@ -157,19 +167,22 @@ export class CopilotSessionMonitor {
   }
 
   getPrompts(sessionId: string, limit = 20): string[] {
-    const eventsPath = path.join(this.basePath, sessionId, 'events.jsonl');
+    const base = this.sessionBasePaths.get(sessionId) || this.basePath;
+    const eventsPath = path.join(base, sessionId, 'events.jsonl');
     return extractCopilotPrompts(eventsPath, limit);
   }
 
-  handleEventsChanged(sessionId: string): void {
-    this.refreshSession(sessionId);
+  handleEventsChanged(sessionId: string, basePath?: string): void {
+    this.refreshSession(sessionId, basePath);
   }
 
-  handleNewSession(sessionId: string): void {
-    const sessionDir = path.join(this.basePath, sessionId);
+  handleNewSession(sessionId: string, basePath?: string): void {
+    const base = basePath || this.basePath;
+    const sessionDir = path.join(base, sessionId);
     const session = this.loadSession(sessionId, sessionDir);
     if (session) {
       this.sessions.set(sessionId, session);
+      if (basePath) this.sessionBasePaths.set(sessionId, basePath);
       this.callbacks.onSessionAdded?.(this.toSummary(session));
     }
   }

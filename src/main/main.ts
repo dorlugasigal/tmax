@@ -531,6 +531,7 @@ function setupWslSessionWatchers(): void {
     // Claude Code sessions in WSL
     const claudePath = path.join(home, '.claude', 'projects');
     if (fs.existsSync(claudePath) && claudeCodeMonitor) {
+      claudeCodeMonitor.addExtraBasePath(claudePath);
       const watcher = new ClaudeCodeSessionWatcher(claudePath, {
         onFileChanged(filePath) { claudeCodeMonitor!.handleFileChanged(filePath); },
         onNewFile(filePath) { claudeCodeMonitor!.handleNewFile(filePath); },
@@ -545,9 +546,11 @@ function setupWslSessionWatchers(): void {
     // Copilot sessions in WSL
     const copilotPath = path.join(home, '.copilot', 'session-state');
     if (fs.existsSync(copilotPath) && copilotMonitor) {
+      copilotMonitor.addExtraBasePath(copilotPath);
+      const wslCopilotBase = copilotPath;
       const watcher = new CopilotSessionWatcher(copilotPath, {
-        onEventsChanged(sessionId) { copilotMonitor!.handleEventsChanged(sessionId); },
-        onNewSession(sessionId) { copilotMonitor!.handleNewSession(sessionId); },
+        onEventsChanged(sessionId) { copilotMonitor!.handleEventsChanged(sessionId, wslCopilotBase); },
+        onNewSession(sessionId) { copilotMonitor!.handleNewSession(sessionId, wslCopilotBase); },
         onSessionRemoved(sessionId) { copilotMonitor!.handleSessionRemoved(sessionId); },
       });
       watcher.start();
