@@ -80,6 +80,16 @@ jobs:
         run: |
           codesign --force --deep --sign - out/tmax-darwin-${{ matrix.arch }}/tmax.app
 
+      # Rename Windows setup exe to include architecture
+      - name: Rename Windows installer
+        if: matrix.platform == 'win32'
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          for f in out/make/squirrel.windows/${{ matrix.arch }}/*.exe; do
+            mv "$f" "$(dirname "$f")/tmax-${VERSION}-${{ matrix.arch }}-Setup.exe"
+          done
+
       # Create portable ZIP for Windows
       - name: Create Windows portable ZIP
         if: matrix.platform == 'win32'
