@@ -334,6 +334,7 @@ interface TerminalStore {
   selectedTerminalIds: Record<TerminalId, true>;
   gridTabIds: Record<TerminalId, true>;
   fontSize: number;
+  terminalOpacity: number;
   favoriteDirs: string[];
   recentDirs: string[];
   showDirPicker: boolean;
@@ -388,6 +389,7 @@ interface TerminalStore {
   updateConfig: (update: Partial<AppConfig>) => Promise<void>;
   toggleTabBarPosition: () => void;
   toggleHideTabTitles: () => void;
+  setTerminalOpacity: (opacity: number) => void;
   startRenaming: (id: TerminalId | null) => void;
   toggleViewMode: () => void;
   toggleSelectTerminal: (id: TerminalId) => void;
@@ -480,6 +482,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   selectedTerminalIds: {} as Record<TerminalId, true>,
   gridTabIds: {} as Record<TerminalId, true>,
   fontSize: 14,
+  terminalOpacity: 1,
 
   // ── Actions ──────────────────────────────────────────────────────
 
@@ -489,6 +492,10 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     const updates: Record<string, unknown> = { config };
     if (config?.tabBarPosition) updates.tabBarPosition = config.tabBarPosition;
     if (typeof (config as any)?.hideTabTitles === 'boolean') updates.hideTabTitles = (config as any).hideTabTitles;
+    if ((config as any)?.terminalOpacity != null) {
+      updates.terminalOpacity = (config as any).terminalOpacity;
+      document.documentElement.style.setProperty('--terminal-opacity', String((config as any).terminalOpacity));
+    }
     set(updates);
   },
 
@@ -1194,7 +1201,12 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       await window.terminalAPI.setConfig(key, value);
     }
     if (update.theme) applyThemeToChromeVars(newConfig.theme);
-    set({ config: newConfig });
+    const extra: Record<string, unknown> = { config: newConfig };
+    // Sync store fontSize with config when terminal font size changes
+    if (update.terminal?.fontSize) {
+      extra.fontSize = update.terminal.fontSize;
+    }
+    set(extra);
   },
 
   toggleTabBarPosition: () => {
@@ -1212,6 +1224,13 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     const val = !get().hideTabTitles;
     set({ hideTabTitles: val });
     get().updateConfig({ hideTabTitles: val } as any);
+  },
+
+  setTerminalOpacity: (opacity: number) => {
+    const clamped = Math.max(0.3, Math.min(1, opacity));
+    set({ terminalOpacity: clamped });
+    document.documentElement.style.setProperty('--terminal-opacity', String(clamped));
+    get().updateConfig({ terminalOpacity: clamped } as any);
   },
 
   startRenaming: (id: TerminalId | null) => {

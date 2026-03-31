@@ -31,7 +31,7 @@ const shortcuts = [
     { key: 'Ctrl+0', action: 'Reset zoom' },
   ]},
   { category: 'AI', items: [
-    { key: 'Ctrl+Shift+I', action: 'Jump to prompt in terminal' },
+    { key: 'Ctrl+Shift+K', action: 'Jump to prompt in terminal' },
     { key: 'Ctrl+Shift+C', action: 'AI Sessions panel' },
   ]},
   { category: 'Other', items: [

@@ -125,16 +125,17 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
     const themeConfig = config?.theme;
     const termConfig = config?.terminal;
 
+    const bgColor = themeConfig?.background ?? '#1e1e2e';
     const term = new Terminal({
       theme: themeConfig
         ? {
-            background: themeConfig.background,
+            background: bgColor,
             foreground: themeConfig.foreground,
             cursor: themeConfig.cursor,
             selectionBackground: themeConfig.selectionBackground,
           }
         : {
-            background: '#1e1e2e',
+            background: bgColor,
             foreground: '#cdd6f4',
             cursor: '#f5e0dc',
             selectionBackground: '#585b70',
@@ -506,17 +507,21 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
     };
   }, [terminalId, handleFocus]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // React to fontSize changes from zoom
+  // React to fontSize and fontFamily changes
+  const configFontFamily = config?.terminal?.fontFamily;
   useEffect(() => {
     try {
       if (terminalRef.current && fitAddonRef.current) {
         terminalRef.current.options.fontSize = fontSize;
+        if (configFontFamily) {
+          terminalRef.current.options.fontFamily = configFontFamily;
+        }
         fitAddonRef.current.fit();
         const { cols, rows } = terminalRef.current;
         window.terminalAPI.resizePty(terminalId, cols, rows);
       }
     } catch { /* terminal may be disposed */ }
-  }, [fontSize, terminalId]);
+  }, [fontSize, configFontFamily, terminalId]);
 
   // Programmatic focus when this terminal becomes focused in the store,
   // or when overlays close (to restore DEC focus reporting for Copilot CLI)
@@ -655,32 +660,21 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
           <button className="terminal-search-btn" onClick={handleCloseSearch} title="Close">&#10005;</button>
         </div>
       )}
-      {title && <div className="terminal-pane-title">{title}</div>}
+      {title && (
+        <div className="terminal-pane-title">
+          <span className="terminal-pane-title-text">{title}</span>
+          <button
+            className="terminal-diff-btn"
+            title="Open diff review"
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              useTerminalStore.getState().openDiffReview(terminalId);
+            }}
+          >Diff</button>
+        </div>
+      )}
       {showDiag && <DiagnosticsOverlay terminalId={terminalId} diagRef={diagRef} mainDiag={mainDiagRef.current} logPath={logPathRef.current} onClose={() => setShowDiag(false)} />}
       <div ref={containerRef} className="xterm-container" />
-      <button
-        className="terminal-diff-btn"
-        title="Open diff review"
-        onMouseDown={(e) => {
-          e.stopPropagation();
-          useTerminalStore.getState().openDiffReview(terminalId);
-        }}
-      >&#9998;</button>
-      <button
-        className="terminal-refocus-btn"
-        title="Re-focus terminal (use if stuck)"
-        onMouseDown={(e) => {
-          e.stopPropagation();
-          try {
-            if (fitAddonRef.current) fitAddonRef.current.fit();
-            if (terminalRef.current) {
-              const { cols, rows } = terminalRef.current;
-              window.terminalAPI.resizePty(terminalId, cols, rows);
-              terminalRef.current.focus();
-            }
-          } catch { /* terminal may be disposed */ }
-        }}
-      >&#8635;</button>
       {bgTint && <div className="terminal-color-overlay" style={{ background: bgTint + '18' }} />}
     </div>
   );

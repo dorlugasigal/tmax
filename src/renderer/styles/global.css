@@ -31,6 +31,7 @@ body,
   color: var(--text-primary);
 }
 
+
 /* ===== App Shell ===== */
 .app-shell {
   display: flex;
@@ -374,52 +375,56 @@ body,
 .terminal-pane-title {
   flex-shrink: 0;
   z-index: 5;
+  display: flex;
+  align-items: center;
   font-size: 11px;
   font-weight: 600;
   color: #f9e2af;
   background: rgba(49, 50, 68, 0.9);
-  padding: 3px 10px;
-  text-align: center;
+  padding: 2px 6px 2px 10px;
   border-bottom: 1px solid rgba(249, 226, 175, 0.3);
   opacity: 0.85;
-  pointer-events: none;
+  line-height: 1.3;
+  transition: opacity 0.2s;
+}
+
+.terminal-pane-title-text {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.3;
-  transition: opacity 0.2s;
 }
 
 .terminal-panel:hover .terminal-pane-title {
   opacity: 1;
 }
 
-.terminal-refocus-btn {
-  position: absolute;
-  top: 4px;
-  right: 8px;
-  z-index: 100;
-  background: rgba(49, 50, 68, 0.9);
-  border: 1px solid rgba(137, 180, 250, 0.3);
-  border-radius: 4px;
+.terminal-diff-btn {
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
   color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 1;
-  padding: 3px 6px;
+  font-size: 10px;
+  padding: 1px 6px;
   cursor: pointer;
-  opacity: 0.3;
-  transition: opacity 0.2s;
+  opacity: 0;
+  transition: opacity 0.15s;
   pointer-events: auto;
 }
 
-.terminal-refocus-btn:hover {
-  opacity: 1;
-  color: var(--text-primary);
-  border-color: var(--focus-border);
-  background: rgba(49, 50, 68, 1);
+.terminal-panel:hover .terminal-diff-btn {
+  opacity: 0.5;
 }
 
-/* Refocus button floats over the full-width title bar */
+.terminal-diff-btn:hover {
+  opacity: 1 !important;
+  color: var(--focus-border);
+  border-color: var(--focus-border);
+  background: rgba(137, 180, 250, 0.1);
+}
 
 /* ── Terminal diagnostics overlay ─────────────────────────────────── */
 .terminal-diag-overlay {
@@ -530,9 +535,22 @@ body,
   overflow: hidden;
 }
 
-/* Hide xterm scrollbar to prevent right-edge flicker */
-.terminal-panel .xterm-container .xterm-viewport::-webkit-scrollbar {
-  width: 0;
+/* Thin scrollbar for xterm terminals */
+.xterm .xterm-viewport::-webkit-scrollbar {
+  width: 8px !important;
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-radius: 4px;
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35) !important;
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar-track {
+  background: transparent !important;
 }
 
 .terminal-panel .xterm-container .xterm {
@@ -1904,6 +1922,79 @@ select.settings-input {
   cursor: pointer;
 }
 
+.settings-toggle {
+  padding: 4px 14px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.settings-toggle.active {
+  background: var(--focus-border);
+  color: var(--bg-primary);
+  border-color: var(--focus-border);
+  font-weight: 600;
+}
+
+/* Font face combo box */
+.font-combobox {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.font-combobox-input {
+  padding-right: 24px !important;
+  width: 100%;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.font-combobox-arrow {
+  position: absolute;
+  right: 6px;
+  top: 0;
+  bottom: 0;
+  color: var(--text-secondary);
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.font-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  min-width: 220px;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--bg-primary);
+  border: 1px solid var(--focus-border);
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  z-index: 10;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.font-dropdown-item {
+  padding: 7px 10px;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.font-dropdown-item:hover {
+  background: rgba(137, 180, 250, 0.12);
+}
+
 /* Keybindings */
 .keybinding-filter {
   width: 100%;
@@ -2608,4 +2699,37 @@ select.settings-input {
   font-size: 13px;
   white-space: nowrap;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Floating rename input (when tab bar is hidden) */
+.floating-rename-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: center;
+  padding-top: 80px;
+}
+
+.floating-rename-box {
+  width: 320px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  padding: 8px;
+  align-self: flex-start;
+}
+
+.floating-rename-box input {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--focus-border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
 }

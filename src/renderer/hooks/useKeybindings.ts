@@ -74,10 +74,11 @@ const DEFAULT_BINDINGS: Record<string, string> = {
   'Ctrl+Shift+Alt+ArrowRight': 'resizeRight',
   'Ctrl+Shift+M': 'tabMenu',
   'Ctrl+Shift+C': 'copilotPanel',
-  'Ctrl+Shift+I': 'showPrompts',
+  'Ctrl+Shift+K': 'showPrompts',
   'Ctrl+Shift+B': 'hideTabBar',
   'Ctrl+Shift+L': 'cycleGridColumns',
   'Ctrl+Shift+O': 'colorizeAllTabs',
+  'F5': 'continueAgent',
 };
 
 export function useKeybindings(): void {
@@ -252,6 +253,14 @@ function dispatchAction(action: string): void {
       if (!focusedId) break;
       const moveDir = action.replace('move', '').toLowerCase() as 'up' | 'down' | 'left' | 'right';
       store.moveTerminalDirection(focusedId, moveDir);
+      break;
+    }
+    case 'continueAgent': {
+      if (!focusedId) break;
+      const terminal = store.terminals.get(focusedId);
+      if (terminal?.aiSessionId) {
+        window.terminalAPI.writePty(focusedId, 'continue\r');
+      }
       break;
     }
     case 'resizeUp':

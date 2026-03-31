@@ -52,10 +52,62 @@ const Settings: React.FC = () => {
 
 // ── Terminal Settings ──────────────────────────────────────────────
 
+const FONT_OPTIONS = [
+  'Cascadia Code',
+  'CaskaydiaCove Nerd Font',
+  'Consolas',
+  'Fira Code',
+  'JetBrains Mono',
+  'Source Code Pro',
+  'IBM Plex Mono',
+  'Hack',
+  'Inconsolata',
+  'Ubuntu Mono',
+  'Roboto Mono',
+  'SF Mono',
+  'Menlo',
+  'Monaco',
+  'DejaVu Sans Mono',
+  'Courier New',
+];
+
+function useAvailableFonts(): string[] {
+  // Show all known monospace fonts — each item previews in its own font
+  // so the user can see which ones are actually installed (missing fonts
+  // fall back to the browser default and look identical).
+  return FONT_OPTIONS;
+}
+
 const TerminalSettings: React.FC = () => {
   const config = useTerminalStore((s) => s.config)!;
   const fontSize = useTerminalStore((s) => s.fontSize);
   const update = useTerminalStore((s) => s.updateConfig);
+  const availableFonts = useAvailableFonts();
+  const [fontInputValue, setFontInputValue] = useState(
+    config.terminal.fontFamily.split(',')[0].trim().replace(/^['"]|['"]$/g, '')
+  );
+  const [fontDropdownOpen, setFontDropdownOpen] = useState(false);
+  const fontInputRef = React.useRef<HTMLDivElement>(null);
+  const fontDropdownRef = React.useRef<HTMLDivElement>(null);
+
+  const applyFont = (fontName: string) => {
+    setFontInputValue(fontName);
+    setFontDropdownOpen(false);
+    update({ terminal: { ...config.terminal, fontFamily: `${fontName}, monospace` } });
+  };
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!fontDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (fontDropdownRef.current && !fontDropdownRef.current.contains(e.target as Node) &&
+          fontInputRef.current && !fontInputRef.current.contains(e.target as Node)) {
+        setFontDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [fontDropdownOpen]);
 
   const applyDefaultColor = (color: string) => {
     update({ defaultTabColor: color } as any);
@@ -67,9 +119,39 @@ const TerminalSettings: React.FC = () => {
         <input type="number" className="settings-input small" value={config.terminal.fontSize}
           onChange={(e) => update({ terminal: { ...config.terminal, fontSize: parseInt(e.target.value) || 14 } })} />
       </SettingRow>
-      <SettingRow label="Font Family" description="CSS font family string">
-        <input type="text" className="settings-input" value={config.terminal.fontFamily}
-          onChange={(e) => update({ terminal: { ...config.terminal, fontFamily: e.target.value } })} />
+      <SettingRow label="Font Face" description="You can use multiple fonts by separating them with a comma">
+        <div className="font-combobox">
+          <div
+            ref={fontInputRef}
+            className="settings-input font-combobox-input"
+            tabIndex={0}
+            onClick={() => setFontDropdownOpen((v) => !v)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setFontDropdownOpen(false);
+              if (e.key === 'Enter' || e.key === ' ') setFontDropdownOpen((v) => !v);
+            }}
+          >
+            {fontInputValue}
+          </div>
+          <span className="font-combobox-arrow">&#9662;</span>
+          {fontDropdownOpen && availableFonts.length > 0 && (
+            <div ref={fontDropdownRef} className="font-dropdown">
+              {availableFonts.map((f) => (
+                <div
+                  key={f}
+                  className="font-dropdown-item"
+                  style={{ fontFamily: `"${f}", monospace` }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    applyFont(f);
+                  }}
+                >
+                  {f}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </SettingRow>
       <SettingRow label="Scrollback" description="Number of lines to keep in scroll buffer">
         <input type="number" className="settings-input small" value={config.terminal.scrollback}

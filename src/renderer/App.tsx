@@ -21,6 +21,7 @@ import CommandPalette from './components/CommandPalette';
 import DirPanel from './components/DirPanel';
 import CopilotPanel from './components/CopilotPanel';
 import DiffReview from './components/DiffReview';
+import FloatingRenameInput from './components/FloatingRenameInput';
 
 const App: React.FC = () => {
   const loadConfig = useTerminalStore((s) => s.loadConfig);
@@ -194,6 +195,7 @@ const App: React.FC = () => {
           <ShortcutsHelp onClose={() => useTerminalStore.getState().toggleShortcuts()} />
         )}
         <DiffReview />
+        <FloatingRenameInput />
       </div>
     </DndContext>
   );
