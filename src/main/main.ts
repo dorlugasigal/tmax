@@ -297,6 +297,20 @@ function registerIpcHandlers(): void {
     return getDiagLogPath();
   });
 
+  ipcMain.handle(IPC.GET_SYSTEM_FONTS, async () => {
+    if (process.platform !== 'win32') return [];
+    try {
+      const { execSync } = require('child_process');
+      const output = execSync(
+        "powershell -NoProfile -Command \"[System.Reflection.Assembly]::LoadWithPartialName('System.Drawing') | Out-Null; (New-Object System.Drawing.Text.InstalledFontCollection).Families | ForEach-Object { $_.Name }\"",
+        { encoding: 'utf8', timeout: 10000 }
+      );
+      return output.trim().split('\n').map((s: string) => s.trim()).filter(Boolean);
+    } catch {
+      return [];
+    }
+  });
+
   ipcMain.handle(IPC.CONFIG_GET, () => {
     return configStore!.getAll();
   });

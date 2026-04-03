@@ -53,45 +53,43 @@ const Settings: React.FC = () => {
 
 // ── Terminal Settings ──────────────────────────────────────────────
 
-const FONT_OPTIONS = [
-  'Cascadia Code',
-  'Cascadia Mono',
-  'Consolas',
-  'Courier New',
-  'Lucida Console',
+const FALLBACK_FONTS = [
+  'Cascadia Code', 'Cascadia Mono', 'Consolas', 'Courier New', 'Lucida Console',
 ];
 
 function useAvailableFonts(): string[] {
   const [available, setAvailable] = useState<string[]>([]);
   useEffect(() => {
-    // Detect installed fonts using canvas text measurement.
-    // Compare rendered width of test strings against multiple fallback fonts.
-    // If a font is installed, at least one test string will differ in width.
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) { setAvailable(FONT_OPTIONS); return; }
+    (async () => {
+      // Get all system fonts from the main process
+      let allFonts: string[];
+      try {
+        allFonts = await (window.terminalAPI as any).getSystemFonts();
+      } catch {
+        allFonts = [];
+      }
+      if (!allFonts || allFonts.length === 0) {
+        setAvailable(FALLBACK_FONTS);
+        return;
+      }
 
-    const testStrings = ['abcdefghijklm', 'nopqrstuvwxyz', '0123456789', '!@#$%^&*()'];
-    const fallbacks = ['monospace', 'serif', 'sans-serif'];
+      // Filter to monospace fonts using canvas measurement:
+      // A monospace font renders 'i' and 'W' at the same width.
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { setAvailable(FALLBACK_FONTS); return; }
 
-    // Measure each test string with each fallback
-    const fallbackWidths: number[][] = fallbacks.map((fb) =>
-      testStrings.map((s) => { ctx.font = `48px ${fb}`; return ctx.measureText(s).width; })
-    );
-
-    const installed = FONT_OPTIONS.filter((font) => {
-      for (let fi = 0; fi < fallbacks.length; fi++) {
-        for (let si = 0; si < testStrings.length; si++) {
-          ctx.font = `48px "${font}", ${fallbacks[fi]}`;
-          if (ctx.measureText(testStrings[si]).width !== fallbackWidths[fi][si]) {
-            return true;
-          }
+      const mono: string[] = [];
+      for (const font of allFonts) {
+        ctx.font = `16px "${font}"`;
+        const wi = ctx.measureText('iiiiii').width;
+        const wW = ctx.measureText('WWWWWW').width;
+        if (Math.abs(wi - wW) < 0.5) {
+          mono.push(font);
         }
       }
-      return false;
-    });
-
-    setAvailable(installed.length > 0 ? installed : FONT_OPTIONS);
+      setAvailable(mono.length > 0 ? mono : FALLBACK_FONTS);
+    })();
   }, []);
   return available;
 }

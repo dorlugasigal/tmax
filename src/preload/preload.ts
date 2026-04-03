@@ -40,6 +40,7 @@ export interface TerminalAPI {
   getPtyDiag(id: string): Promise<PtyDiag | null>;
   diagLog(event: string, data?: Record<string, unknown>): void;
   getDiagLogPath(): Promise<string>;
+  getSystemFonts(): Promise<string[]>;
   // ── Transparency ──────────────────────────────────────────────────
   setBackgroundMaterial(material: string): Promise<void>;
   getPlatformSupportsMaterial(): Promise<boolean>;
@@ -287,6 +288,10 @@ const terminalAPI: TerminalAPI = {
 
   getDiagLogPath() {
     return ipcRenderer.invoke(IPC.DIAG_GET_LOG_PATH);
+  },
+
+  getSystemFonts() {
+    return ipcRenderer.invoke(IPC.GET_SYSTEM_FONTS);
   },
 
   onUpdateStatusChanged(cb: (info: { status: string; current: string; latest?: string; url?: string; error?: string }) => void): () => void {
