@@ -48,6 +48,8 @@ export interface TerminalAPI {
   diffResolveGitRoot(cwd: string): Promise<string>;
   diffGetDiff(cwd: string, mode: DiffMode): Promise<DiffResult>;
   diffGetAnnotatedFile(cwd: string, filePath: string, mode: DiffMode): Promise<AnnotatedFile>;
+  // ── File explorer ────────────────────────────────────────────────
+  fileList(dirPath: string): Promise<{ name: string; isDirectory: boolean; path: string }[]>;
 }
 
 const terminalAPI: TerminalAPI = {
@@ -324,6 +326,11 @@ const terminalAPI: TerminalAPI = {
 
   diffGetAnnotatedFile(cwd: string, filePath: string, mode: DiffMode) {
     return ipcRenderer.invoke(IPC.DIFF_GET_ANNOTATED_FILE, cwd, filePath, mode);
+  },
+
+  // ── File explorer ──────────────────────────────────────────────
+  fileList(dirPath: string) {
+    return ipcRenderer.invoke(IPC.FILE_LIST, dirPath);
   },
 
 };

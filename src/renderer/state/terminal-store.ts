@@ -381,6 +381,7 @@ interface TerminalStore {
   favoriteDirs: string[];
   recentDirs: string[];
   showDirPicker: boolean;
+  showFileExplorer: boolean;
   tabMenuTerminalId: TerminalId | null;
   autoColorTabs: boolean;
   showCopilotPanel: boolean;
@@ -458,6 +459,7 @@ interface TerminalStore {
   removeRecentDir: (dir: string) => void;
   cdToDir: (dir: string) => void;
   toggleDirPicker: () => void;
+  toggleFileExplorer: () => void;
   openTabMenu: (id?: TerminalId) => void;
   loadDirs: () => Promise<void>;
   saveDirs: () => Promise<void>;
@@ -513,6 +515,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   showCommandPalette: false,
   showSettings: false,
   showDirPicker: false,
+  showFileExplorer: false,
   autoColorTabs: true,
   showCopilotPanel: false,
   promptsDialogRequest: null,
@@ -1641,6 +1644,10 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
 
   toggleDirPicker: () => {
     set((state) => ({ showDirPicker: !state.showDirPicker }));
+  },
+
+  toggleFileExplorer: () => {
+    set((state) => ({ showFileExplorer: !state.showFileExplorer }));
   },
 
   openTabMenu: (id?: TerminalId) => {

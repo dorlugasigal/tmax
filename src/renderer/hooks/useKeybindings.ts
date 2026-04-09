@@ -76,6 +76,7 @@ const DEFAULT_BINDINGS: Record<string, string> = {
   'Ctrl+Shift+C': 'copilotPanel',
   'Ctrl+Shift+K': 'showPrompts',
   'Ctrl+Shift+B': 'hideTabBar',
+  'Ctrl+Shift+X': 'fileExplorer',
   'Ctrl+Shift+L': 'cycleGridColumns',
   'Ctrl+Shift+O': 'colorizeAllTabs',
   'F5': 'continueAgent',
@@ -239,6 +240,9 @@ function dispatchAction(action: string): void {
       break;
     case 'hideTabBar':
       store.toggleHideTabTitles();
+      break;
+    case 'fileExplorer':
+      store.toggleFileExplorer();
       break;
     case 'cycleGridColumns':
       store.cycleGridColumns();

@@ -577,6 +577,28 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC.DIFF_GET_ANNOTATED_FILE, async (_event, cwd: string, filePath: string, mode: DiffMode) => {
     return diffService.getAnnotatedFile(cwd, filePath, mode);
   });
+
+  // ── File explorer IPC ──────────────────────────────────────────────
+  ipcMain.handle(IPC.FILE_LIST, async (_event, dirPath: string) => {
+    const fs = require('fs');
+    const pathMod = require('path');
+    try {
+      const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+      return entries
+        .map((e: any) => ({
+          name: e.name,
+          isDirectory: e.isDirectory(),
+          path: pathMod.join(dirPath, e.name),
+        }))
+        .sort((a: any, b: any) => {
+          // Directories first, then alphabetical
+          if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+          return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+        });
+    } catch {
+      return [];
+    }
+  });
 }
 
 function setupCopilotMonitor(): void {

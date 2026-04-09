@@ -51,6 +51,8 @@ export const IPC = {
   DIFF_GET_CODE_CHANGES: 'diff:getCodeChanges',
   DIFF_GET_DIFF: 'diff:getDiff',
   DIFF_GET_ANNOTATED_FILE: 'diff:getAnnotatedFile',
+  // ── File explorer ──────────────────────────────────────────────────
+  FILE_LIST: 'file:list',
 } as const;
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];

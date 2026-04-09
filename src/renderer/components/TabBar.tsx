@@ -234,7 +234,7 @@ const TabBar: React.FC<{ vertical?: boolean; side?: 'left' | 'right' }> = ({ ver
   const sections = useMemo(() => {
     const result: Array<
       | { type: 'group'; groupId: string; name: string; color: string; collapsed: boolean }
-      | { type: 'tab'; id: string; terminal: typeof terminalEntries[0][1] }
+      | { type: 'tab'; id: string; terminal: typeof terminalEntries[0][1]; groupColor?: string }
     > = [];
     const usedIds = new Set<string>();
 
@@ -245,7 +245,7 @@ const TabBar: React.FC<{ vertical?: boolean; side?: 'left' | 'right' }> = ({ ver
       for (const [id, terminal] of groupTabs) {
         usedIds.add(id);
         if (!group.collapsed) {
-          result.push({ type: 'tab', id, terminal });
+          result.push({ type: 'tab', id, terminal, groupColor: group.color });
         }
       }
     }
@@ -278,16 +278,17 @@ const TabBar: React.FC<{ vertical?: boolean; side?: 'left' | 'right' }> = ({ ver
               </span>
             </div>
           ) : (
-            <Tab
-              key={section.id}
-              terminalId={section.id}
-              title={section.terminal.title}
-              isActive={focusedTerminalId === section.id}
-              isRenaming={renamingId === section.id}
-              onActivate={() => useTerminalStore.getState().setFocus(section.id)}
-              onClose={() => useTerminalStore.getState().closeTerminal(section.id)}
-              onContextMenu={(e) => handleContextMenu(e, section.id)}
-            />
+            <div key={section.id} className="tab-group-slot" style={section.groupColor ? { borderTopColor: section.groupColor } : undefined}>
+              <Tab
+                terminalId={section.id}
+                title={section.terminal.title}
+                isActive={focusedTerminalId === section.id}
+                isRenaming={renamingId === section.id}
+                onActivate={() => useTerminalStore.getState().setFocus(section.id)}
+                onClose={() => useTerminalStore.getState().closeTerminal(section.id)}
+                onContextMenu={(e) => handleContextMenu(e, section.id)}
+              />
+            </div>
           )
         )}
       </SortableContext>

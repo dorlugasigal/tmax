@@ -21,6 +21,7 @@ import CommandPalette from './components/CommandPalette';
 import DirPanel from './components/DirPanel';
 import CopilotPanel from './components/CopilotPanel';
 import DiffReview from './components/DiffReview';
+import FileExplorer from './components/FileExplorer';
 import FloatingRenameInput from './components/FloatingRenameInput';
 
 const App: React.FC = () => {
@@ -170,6 +171,7 @@ const App: React.FC = () => {
           <div className="main-area">
             <DirPanel />
             <CopilotPanel />
+            <FileExplorer />
             <div className="layout-area">
               <TilingLayout />
               <FloatingLayer />

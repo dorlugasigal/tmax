@@ -131,6 +131,13 @@ const StatusBar: React.FC = () => {
           </button>
           <button
             className="status-mode-btn"
+            onClick={() => useTerminalStore.getState().toggleFileExplorer()}
+            title="File Explorer (Ctrl+Shift+X)"
+          >
+            &#128196; Files
+          </button>
+          <button
+            className="status-mode-btn"
             onClick={() => useTerminalStore.getState().toggleCopilotPanel()}
             title="AI Sessions (Ctrl+Shift+C)"
           >

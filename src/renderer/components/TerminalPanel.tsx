@@ -287,8 +287,8 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
           diagRef.current.outputEventCount++;
           diagRef.current.lastOutputTime = Date.now();
           diagRef.current.outputBytes += data.length;
-          // Avoid re-render on every data chunk — the 1s timer handles active→idle
-          if (processStatusRef.current !== 'active') {
+          // Only mark as active for substantial output (>50 bytes), not cursor/prompt redraws
+          if (data.length > 50 && processStatusRef.current !== 'active') {
             processStatusRef.current = 'active';
             setProcessStatus('active');
           }
@@ -545,12 +545,19 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
   // Keep ref in sync for use in closure
   useEffect(() => { processStatusRef.current = processStatus; }, [processStatus]);
 
-  // Process status: detect idle after 5s of no output
+  // Process status: detect idle after 3s of no substantial output
   useEffect(() => {
+    let lastBytes = 0;
     const id = setInterval(() => {
       setProcessStatus((prev) => {
         if (prev.startsWith('exited')) return prev;
-        return Date.now() - diagRef.current.lastOutputTime > 5000 ? 'idle' : 'active';
+        const now = Date.now();
+        const elapsed = now - diagRef.current.lastOutputTime;
+        const bytesDelta = diagRef.current.outputBytes - lastBytes;
+        lastBytes = diagRef.current.outputBytes;
+        // Active only if recent output AND substantial volume
+        if (elapsed < 3000 && bytesDelta > 50) return 'active';
+        return 'idle';
       });
     }, 1000);
     return () => clearInterval(id);
