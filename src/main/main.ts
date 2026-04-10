@@ -637,6 +637,25 @@ function registerIpcHandlers(): void {
       return [];
     }
   });
+
+  ipcMain.handle(IPC.FILE_READ, async (_event, filePath: string, wslDistro?: string) => {
+    try {
+      let fsPath = filePath;
+      if (wslDistro && filePath.startsWith('/')) {
+        if (!/^[\w][\w.\-]*$/.test(wslDistro)) return null;
+        fsPath = `//wsl.localhost/${wslDistro}${filePath}`;
+      }
+      const stat = fs.statSync(fsPath);
+      // Only read text files under 1MB
+      if (stat.size > 1024 * 1024) return null;
+      const content = fs.readFileSync(fsPath, 'utf-8');
+      // Check if content looks like binary
+      if (content.includes('\0')) return null;
+      return content;
+    } catch {
+      return null;
+    }
+  });
 }
 
 function setupCopilotMonitor(): void {

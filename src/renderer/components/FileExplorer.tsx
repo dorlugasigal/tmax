@@ -29,6 +29,7 @@ const FileExplorer: React.FC = () => {
   const [pathInputValue, setPathInputValue] = useState('');
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; entry: FileEntry } | null>(null);
   const ctxRef = useRef<HTMLDivElement>(null);
+  const [preview, setPreview] = useState<{ name: string; content: string } | null>(null);
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [resizing, setResizing] = useState(false);
   const filterRef = useRef<HTMLInputElement>(null);
@@ -74,8 +75,26 @@ const FileExplorer: React.FC = () => {
     });
   }, [children, wslDistro]);
 
-  const handleFileClick = useCallback((filePath: string) => {
-    // For WSL files, translate Linux path to UNC for Windows to open
+  const TEXT_EXTENSIONS = new Set(['ts', 'tsx', 'js', 'jsx', 'json', 'md', 'txt', 'css', 'html', 'yml', 'yaml', 'toml', 'sh', 'bash', 'py', 'rs', 'go', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'xml', 'svg', 'env', 'gitignore', 'dockerfile', 'makefile', 'cfg', 'ini', 'conf', 'log', 'sql', 'graphql', 'proto', 'lock']);
+
+  const handleFileClick = useCallback((filePath: string, fileName: string) => {
+    const ext = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() || '' : fileName.toLowerCase();
+    if (TEXT_EXTENSIONS.has(ext)) {
+      // Show inline preview
+      (window.terminalAPI as any).fileRead(filePath, wslDistro).then((content: string | null) => {
+        if (content !== null) {
+          setPreview({ name: fileName, content });
+        } else {
+          // Binary or too large — open externally
+          openFileExternally(filePath);
+        }
+      });
+    } else {
+      openFileExternally(filePath);
+    }
+  }, [wslDistro]);
+
+  const openFileExternally = useCallback((filePath: string) => {
     if (wslDistro && filePath.startsWith('/')) {
       const uncPath = `\\\\wsl.localhost\\${wslDistro}${filePath.replace(/\//g, '\\')}`;
       (window.terminalAPI as any).openPath(uncPath);
@@ -144,7 +163,7 @@ const FileExplorer: React.FC = () => {
             if (entry.isDirectory) {
               toggleDir(entry.path);
             } else {
-              handleFileClick(entry.path);
+              handleFileClick(entry.path, entry.name);
             }
           }}
           onDoubleClick={() => {
@@ -236,10 +255,25 @@ const FileExplorer: React.FC = () => {
         onChange={(e) => setFilter(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Escape') { setFilter(''); e.stopPropagation(); } }}
       />
-      <div className="file-explorer-list">
+      <div className="file-explorer-list" style={preview ? { flex: '0 0 auto', maxHeight: '40%' } : { flex: 1 }}>
         {files.map((entry) => renderEntry(entry, 0))}
         {files.length === 0 && <div className="dir-panel-empty">No files</div>}
       </div>
+      {preview && (
+        <div className="file-preview">
+          <div className="file-preview-header">
+            <span className="file-preview-name">{preview.name}</span>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button className="file-explorer-nav-btn" onClick={() => openFileExternally(
+                // Find the full path from the preview name
+                files.find((f) => f.name === preview.name)?.path || preview.name
+              )} title="Open in editor">&#8599;</button>
+              <button className="dir-panel-close" onClick={() => setPreview(null)}>&#10005;</button>
+            </div>
+          </div>
+          <pre className="file-preview-content">{preview.content}</pre>
+        </div>
+      )}
       {ctxMenu && (
         <div ref={ctxRef} className="context-menu" style={{ left: ctxMenu.x, top: ctxMenu.y, zIndex: 1000 }}>
           <button className="context-menu-item" onClick={() => {

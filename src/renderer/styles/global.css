@@ -116,6 +116,7 @@ html.transparency-active .input-dialog {
   align-items: center;
   padding: 0 4px;
   gap: 2px;
+  border-bottom: 1px solid var(--border-color);
   -webkit-app-region: no-drag;
 }
 
@@ -2481,6 +2482,48 @@ select.settings-input {
 
 .file-children {
   padding-left: 4px;
+}
+
+/* File preview */
+.file-preview {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border-color);
+  min-height: 0;
+}
+
+.file-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.file-preview-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-preview-content {
+  flex: 1;
+  overflow: auto;
+  margin: 0;
+  padding: 8px;
+  font-size: 11px;
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  white-space: pre;
+  tab-size: 2;
 }
 
 /* ===== Input Dialog ===== */

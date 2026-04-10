@@ -352,28 +352,25 @@ const TabBar: React.FC<{ vertical?: boolean; side?: 'left' | 'right' }> = ({ ver
               }}
             />
           </div>
-          <div className="context-menu-separator" />
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '8px 12px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '6px 10px' }}>
             {TAB_COLORS.map((c) => (
               <div
-                key={c}
-                onClick={() => {
+                key={c.value}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   const { tabGroups: groups } = useTerminalStore.getState();
                   const g = groups.get(groupMenu.groupId);
                   if (g) {
                     const newGroups = new Map(groups);
-                    newGroups.set(groupMenu.groupId, { ...g, color: c });
+                    newGroups.set(groupMenu.groupId, { ...g, color: c.value });
                     useTerminalStore.setState({ tabGroups: newGroups });
                   }
                   setGroupMenu(null);
                 }}
                 style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  background: c,
-                  cursor: 'pointer',
-                  outline: tabGroups.get(groupMenu.groupId)?.color === c ? '2px solid #fff' : 'none',
+                  width: 16, height: 16, borderRadius: '50%', background: c.value, cursor: 'pointer',
+                  outline: tabGroups.get(groupMenu.groupId)?.color === c.value ? '2px solid #fff' : 'none',
                   outlineOffset: 1,
                 }}
               />

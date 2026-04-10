@@ -51,6 +51,7 @@ export interface TerminalAPI {
   diffGetAnnotatedFile(cwd: string, filePath: string, mode: DiffMode): Promise<AnnotatedFile>;
   // ── File explorer ────────────────────────────────────────────────
   fileList(dirPath: string, wslDistro?: string): Promise<{ name: string; isDirectory: boolean; path: string }[]>;
+  fileRead(filePath: string, wslDistro?: string): Promise<string | null>;
 }
 
 const terminalAPI: TerminalAPI = {
@@ -332,6 +333,10 @@ const terminalAPI: TerminalAPI = {
   // ── File explorer ──────────────────────────────────────────────
   fileList(dirPath: string, wslDistro?: string) {
     return ipcRenderer.invoke(IPC.FILE_LIST, dirPath, wslDistro);
+  },
+
+  fileRead(filePath: string, wslDistro?: string) {
+    return ipcRenderer.invoke(IPC.FILE_READ, filePath, wslDistro);
   },
 
 };
