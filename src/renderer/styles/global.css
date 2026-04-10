@@ -2586,6 +2586,28 @@ select.settings-input {
   tab-size: 2;
 }
 
+.file-preview-content::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.file-preview-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 5px;
+}
+
+.file-preview-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.file-preview-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.file-preview-content::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* ===== Input Dialog ===== */
 .input-dialog {
   width: 400px;
