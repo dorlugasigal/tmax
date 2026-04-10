@@ -491,6 +491,7 @@ html.transparency-active .input-dialog {
 
 .terminal-panel.focused {
   border: 2px solid var(--focus-border);
+  border-top: none;
   box-shadow: inset 0 0 8px rgba(137, 180, 250, 0.15);
 }
 
@@ -535,6 +536,13 @@ html.transparency-active .input-dialog {
 }
 
 .terminal-panel:hover .terminal-pane-title {
+  opacity: 1;
+}
+
+.terminal-panel.focused .terminal-pane-title {
+  background: rgba(137, 180, 250, 0.15);
+  color: var(--focus-border);
+  border-bottom-color: rgba(137, 180, 250, 0.3);
   opacity: 1;
 }
 

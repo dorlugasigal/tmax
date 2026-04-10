@@ -88,8 +88,11 @@ const Tab: React.FC<TabProps> = ({
       ? isActive
         ? { background: `${tabColor}cc`, color: '#fff', filter: 'brightness(1.2)' }
         : { background: `${tabColor}33`, color: '#aaa' }
-      : {}),
-    ...(groupColor ? { borderTop: `2px solid ${groupColor}` } : {}),
+      : groupColor
+        ? isActive
+          ? { background: `${groupColor}66`, color: '#fff' }
+          : { background: `${groupColor}22` }
+        : {}),
   };
 
   const handleMouseDown = useCallback(

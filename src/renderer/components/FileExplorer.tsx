@@ -10,6 +10,7 @@ interface FileEntry {
 const MIN_WIDTH = 180;
 const MAX_WIDTH = 600;
 const DEFAULT_WIDTH = 240;
+const TEXT_EXTENSIONS = new Set(['ts', 'tsx', 'js', 'jsx', 'json', 'md', 'txt', 'css', 'html', 'yml', 'yaml', 'toml', 'sh', 'bash', 'py', 'rs', 'go', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'xml', 'svg', 'env', 'gitignore', 'dockerfile', 'makefile', 'cfg', 'ini', 'conf', 'log', 'sql', 'graphql', 'proto', 'lock']);
 
 const FileExplorer: React.FC = () => {
   const show = useTerminalStore((s) => s.showFileExplorer);
@@ -74,8 +75,6 @@ const FileExplorer: React.FC = () => {
       return next;
     });
   }, [children, wslDistro]);
-
-  const TEXT_EXTENSIONS = new Set(['ts', 'tsx', 'js', 'jsx', 'json', 'md', 'txt', 'css', 'html', 'yml', 'yaml', 'toml', 'sh', 'bash', 'py', 'rs', 'go', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'xml', 'svg', 'env', 'gitignore', 'dockerfile', 'makefile', 'cfg', 'ini', 'conf', 'log', 'sql', 'graphql', 'proto', 'lock']);
 
   const handleFileClick = useCallback((filePath: string, fileName: string) => {
     const ext = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() || '' : fileName.toLowerCase();
@@ -277,7 +276,7 @@ const FileExplorer: React.FC = () => {
       {ctxMenu && (
         <div ref={ctxRef} className="context-menu" style={{ left: ctxMenu.x, top: ctxMenu.y, zIndex: 1000 }}>
           <button className="context-menu-item" onClick={() => {
-            handleFileClick(ctxMenu.entry.path);
+            handleFileClick(ctxMenu.entry.path, ctxMenu.entry.name);
             setCtxMenu(null);
           }}>
             {ctxMenu.entry.isDirectory ? 'Open Folder' : 'Open File'}
