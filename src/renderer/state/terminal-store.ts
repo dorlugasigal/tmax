@@ -567,7 +567,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     if (!profile) return;
 
     const id = uuidv4();
-    const cwd = profile.cwd || (config as any).defaultCwd || (navigator.platform.startsWith('Win') ? 'C:\\Users' : '/');
+    const cwd = profile.cwd || (config as any).defaultCwd || (navigator.platform.startsWith('Win') ? 'C:\\Users' : ((window as any).platformInfo?.homeDir || '/'));
     const { pid } = await window.terminalAPI.createPty({
       id,
       shellPath: profile.path,
@@ -1736,7 +1736,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
         // Sanitize cwd: skip executable paths that were incorrectly saved as cwd
         let cwd = info.cwd || '';
         if (/\.(exe|cmd|bat|com|ps1|sh|msi|dll)$/i.test(cwd) || !cwd) {
-          cwd = profile.cwd || (navigator.platform.startsWith('Win') ? 'C:\\Users' : '/');
+          cwd = profile.cwd || (navigator.platform.startsWith('Win') ? 'C:\\Users' : ((window as any).platformInfo?.homeDir || '/'));
         }
         try {
           const { pid } = await window.terminalAPI.createPty({
@@ -1876,7 +1876,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     if (!profile) return;
 
     const id = uuidv4();
-    const termCwd = cwd || profile.cwd || (navigator.platform.startsWith('Win') ? 'C:\\Users' : '/');
+    const termCwd = cwd || profile.cwd || (navigator.platform.startsWith('Win') ? 'C:\\Users' : ((window as any).platformInfo?.homeDir || '/'));
     const { pid } = await window.terminalAPI.createPty({
       id,
       shellPath: profile.path,
@@ -2066,7 +2066,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     if (!profile) return;
 
     const id = uuidv4();
-    const termCwd = cwd || profile.cwd || (navigator.platform.startsWith('Win') ? 'C:\\Users' : '/');
+    const termCwd = cwd || profile.cwd || (navigator.platform.startsWith('Win') ? 'C:\\Users' : ((window as any).platformInfo?.homeDir || '/'));
     const { pid } = await window.terminalAPI.createPty({
       id,
       shellPath: profile.path,
