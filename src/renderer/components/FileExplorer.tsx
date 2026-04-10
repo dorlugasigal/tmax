@@ -164,6 +164,8 @@ const FileExplorer: React.FC = () => {
           onDoubleClick={() => {
             if (entry.isDirectory) {
               navigateTo(entry.path);
+            } else {
+              openFileExternally(entry.path);
             }
           }}
           onContextMenu={(e) => {
@@ -271,11 +273,23 @@ const FileExplorer: React.FC = () => {
       )}
       {ctxMenu && (
         <div ref={ctxRef} className="context-menu" style={{ left: ctxMenu.x, top: ctxMenu.y, zIndex: 1000 }}>
+          {!ctxMenu.entry.isDirectory && (
+            <button className="context-menu-item" onClick={() => {
+              handleFileClick(ctxMenu.entry.path, ctxMenu.entry.name);
+              setCtxMenu(null);
+            }}>
+              Preview
+            </button>
+          )}
           <button className="context-menu-item" onClick={() => {
-            handleFileClick(ctxMenu.entry.path, ctxMenu.entry.name);
+            if (ctxMenu.entry.isDirectory) {
+              openFileExternally(ctxMenu.entry.path);
+            } else {
+              openFileExternally(ctxMenu.entry.path);
+            }
             setCtxMenu(null);
           }}>
-            {ctxMenu.entry.isDirectory ? 'Open Folder' : 'Open File'}
+            {ctxMenu.entry.isDirectory ? 'Open Folder' : 'Open in Editor'}
           </button>
           {ctxMenu.entry.isDirectory && (
             <button className="context-menu-item" onClick={() => {
