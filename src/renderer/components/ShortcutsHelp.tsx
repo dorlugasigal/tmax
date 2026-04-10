@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { formatKeyForPlatform } from '../utils/platform';
 
 interface ShortcutsHelpProps {
   onClose: () => void;
@@ -69,7 +70,7 @@ const ShortcutsHelp: React.FC<ShortcutsHelpProps> = ({ onClose }) => {
               <div className="shortcuts-category">{group.category}</div>
               {group.items.map((item) => (
                 <div key={item.key} className="shortcuts-row">
-                  <kbd className="shortcuts-key">{item.key}</kbd>
+                  <kbd className="shortcuts-key">{formatKeyForPlatform(item.key)}</kbd>
                   <span className="shortcuts-action">{item.action}</span>
                 </div>
               ))}

@@ -336,3 +336,7 @@ const terminalAPI: TerminalAPI = {
 };
 
 contextBridge.exposeInMainWorld('terminalAPI', terminalAPI);
+contextBridge.exposeInMainWorld('platformInfo', {
+  platform: process.platform,
+  homeDir: require('os').homedir(),
+});

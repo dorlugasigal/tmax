@@ -68,9 +68,9 @@ const App: React.FC = () => {
     }
     init();
 
-    // Prevent Chromium CSS zoom on Ctrl+wheel anywhere outside terminals
+    // Prevent Chromium CSS zoom on Ctrl+wheel (Cmd+wheel on Mac) anywhere outside terminals
     const handleGlobalWheel = (e: WheelEvent) => {
-      if (e.ctrlKey) e.preventDefault();
+      if (e.ctrlKey || e.metaKey) e.preventDefault();
     };
     document.addEventListener('wheel', handleGlobalWheel, { passive: false });
 

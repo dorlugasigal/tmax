@@ -4,6 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useTerminalStore } from '../state/terminal-store';
 import type { TerminalId } from '../state/types';
 import TabContextMenu, { type ContextMenuPosition } from './TabContextMenu';
+import { isMac } from '../utils/platform';
 
 interface TabProps {
   terminalId: TerminalId;
@@ -112,7 +113,7 @@ const Tab: React.FC<TabProps> = ({
       style={style}
       data-tab-id={terminalId}
       onClick={(e) => {
-        if (e.ctrlKey) {
+        if (isMac ? e.metaKey : e.ctrlKey) {
           const store = useTerminalStore.getState();
           // First Ctrl+Click: also select the currently focused tab
           if (Object.keys(store.selectedTerminalIds).length === 0 && store.focusedTerminalId && store.focusedTerminalId !== terminalId) {

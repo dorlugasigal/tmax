@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useTerminalStore } from '../state/terminal-store';
 import type { SplitDirection } from '../state/types';
+import { isMac } from '../utils/platform';
 
 interface KeyCombo {
   ctrlKey: boolean;
@@ -12,13 +13,14 @@ interface KeyCombo {
 function parseKeyCombo(combo: string): KeyCombo {
   // Handle special cases: "Ctrl+=" ends with "+" then "=" which splits oddly
   // Also "Ctrl+-" and "Ctrl+Shift+?" need care
-  const ctrlKey = /\bctrl\b/i.test(combo);
+  // Accept Meta/Cmd as aliases for Ctrl (cross-platform config support)
+  const ctrlKey = /\b(ctrl|meta|cmd)\b/i.test(combo);
   const shiftKey = /\bshift\b/i.test(combo);
   const altKey = /\balt\b/i.test(combo);
 
   // Extract the actual key: everything after the last modifier+
   let key = combo;
-  key = key.replace(/\b(ctrl|shift|alt)\s*\+\s*/gi, '');
+  key = key.replace(/\b(ctrl|meta|cmd|shift|alt)\s*\+\s*/gi, '');
   key = key.toLowerCase().trim();
 
   // Normalize common key names
@@ -27,9 +29,27 @@ function parseKeyCombo(combo: string): KeyCombo {
   return { ctrlKey, shiftKey, altKey, key };
 }
 
+// On macOS, Cmd suppresses Shift key transformation in event.key,
+// so Cmd+Shift+/ reports key='/' instead of '?'. Map unshifted → shifted.
+const MAC_SHIFT_MAP: Record<string, string> = {
+  '/': '?', '=': '+', '-': '_', '[': '{', ']': '}', '\\': '|',
+  ';': ':', "'": '"', ',': '<', '.': '>', '`': '~',
+  '1': '!', '2': '@', '3': '#', '4': '$', '5': '%',
+  '6': '^', '7': '&', '8': '*', '9': '(', '0': ')',
+};
+
 function matchesCombo(event: KeyboardEvent, combo: KeyCombo): boolean {
-  // event.key for arrows is "ArrowRight" etc, normalize both sides
   const eventKey = event.key.toLowerCase();
+  // On macOS, Cmd (metaKey) is the primary app modifier instead of Ctrl
+  if (isMac) {
+    const shiftedKey = combo.shiftKey ? (MAC_SHIFT_MAP[eventKey] ?? eventKey) : eventKey;
+    return (
+      event.metaKey === combo.ctrlKey &&
+      event.shiftKey === combo.shiftKey &&
+      event.altKey === combo.altKey &&
+      (eventKey === combo.key || shiftedKey === combo.key)
+    );
+  }
   return (
     event.ctrlKey === combo.ctrlKey &&
     event.shiftKey === combo.shiftKey &&

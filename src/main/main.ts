@@ -203,7 +203,8 @@ function createWindow(): void {
 
   // Prevent Chromium's built-in zoom — reset zoom level after any zoom attempt
   mainWindow.webContents.on('before-input-event', (_event, input) => {
-    if (input.control && !input.shift && !input.alt) {
+    const primaryMod = process.platform === 'darwin' ? input.meta : input.control;
+    if (primaryMod && !input.shift && !input.alt) {
       if (input.key === '=' || input.key === '+' || input.key === '-' || input.key === '0') {
         mainWindow!.webContents.setZoomLevel(0);
       }
@@ -673,7 +674,35 @@ process.on('uncaughtException', (error) => {
 
 app.whenReady().then(() => {
   try {
-    Menu.setApplicationMenu(null);
+    // On macOS, a null menu creates default accelerators (Cmd+C/V/X) that
+    // intercept events before the renderer. Use a minimal menu instead.
+    if (process.platform === 'darwin') {
+      const macMenu = Menu.buildFromTemplate([
+        {
+          label: app.name,
+          submenu: [
+            { role: 'about' },
+            { type: 'separator' },
+            { role: 'quit' },
+          ],
+        },
+        {
+          label: 'Edit',
+          submenu: [
+            { role: 'undo' },
+            { role: 'redo' },
+            { type: 'separator' },
+            { role: 'cut' },
+            { role: 'copy' },
+            { role: 'paste' },
+            { role: 'selectAll' },
+          ],
+        },
+      ]);
+      Menu.setApplicationMenu(macMenu);
+    } else {
+      Menu.setApplicationMenu(null);
+    }
     initDiagLogger();
     setupConfigStore();
     console.log('Config store ready');
