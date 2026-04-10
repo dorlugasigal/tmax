@@ -380,11 +380,22 @@ const TabBar: React.FC<{ vertical?: boolean; side?: 'left' | 'right' }> = ({ ver
             ))}
           </div>
           <div className="context-menu-separator" />
-          <button className="context-menu-item danger" onClick={() => {
+          <button className="context-menu-item" onClick={() => {
             useTerminalStore.getState().deleteTabGroup(groupMenu.groupId);
             setGroupMenu(null);
           }}>
             Ungroup All
+          </button>
+          <button className="context-menu-item danger" onClick={() => {
+            const store = useTerminalStore.getState();
+            const ids = Array.from(store.terminals.entries())
+              .filter(([, t]) => t.groupId === groupMenu.groupId)
+              .map(([id]) => id);
+            store.deleteTabGroup(groupMenu.groupId);
+            (async () => { for (const id of ids) await store.closeTerminal(id); })();
+            setGroupMenu(null);
+          }}>
+            Close All
           </button>
         </div>,
         document.body,
