@@ -27,7 +27,19 @@ const CommandPalette: React.FC = () => {
       { id: 'renameTerminal', label: 'Rename Terminal', shortcut: 'Ctrl+Shift+R', action: () => { const id = focusedId(); if (id) store().startRenaming(id); } },
       { id: 'jumpToTerminal', label: 'Jump to Terminal', shortcut: 'Ctrl+Shift+G', action: () => store().toggleSwitcher() },
       { id: 'paneHints', label: 'Jump to Terminal by Hint', shortcut: 'Ctrl+Shift+J', action: () => store().togglePaneHints() },
-      { id: 'tabMenu', label: 'Open Tab Menu', shortcut: 'Ctrl+Shift+M', action: () => store().openTabMenu() },
+      { id: 'tabMenu', label: 'Open Tab Menu', shortcut: 'Ctrl+Shift+M', action: () => {
+        const id = focusedId();
+        if (id) {
+          const tabEl = document.querySelector(`[data-tab-id="${id}"]`);
+          if (tabEl) {
+            const rect = tabEl.getBoundingClientRect();
+            tabEl.dispatchEvent(new MouseEvent('contextmenu', {
+              bubbles: true, cancelable: true,
+              clientX: rect.left + rect.width / 2, clientY: rect.bottom, button: 2,
+            }));
+          }
+        }
+      } },
       { id: 'focusNext', label: 'Focus Next Terminal', shortcut: 'Ctrl+Tab', action: () => store().focusNext() },
       { id: 'focusPrev', label: 'Focus Previous Terminal', shortcut: 'Ctrl+Shift+Tab', action: () => store().focusPrev() },
       { id: 'splitRight', label: 'Split Right', shortcut: 'Ctrl+Alt+\u2192', action: () => { const id = focusedId(); if (id) store().splitTerminal(id, 'horizontal', undefined, 'right'); } },

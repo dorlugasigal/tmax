@@ -567,7 +567,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     if (!profile) return;
 
     const id = uuidv4();
-    const cwd = profile.cwd || (config as any).defaultCwd || (navigator.platform.startsWith('Win') ? 'C:\\Users' : process.env.HOME || '/');
+    const cwd = profile.cwd || (config as any).defaultCwd || (navigator.platform.startsWith('Win') ? 'C:\\Users' : '/');
     const { pid } = await window.terminalAPI.createPty({
       id,
       shellPath: profile.path,
@@ -1652,7 +1652,9 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
 
   openTabMenu: (id?: TerminalId) => {
     const targetId = id ?? get().focusedTerminalId;
-    if (targetId) set({ tabMenuTerminalId: targetId });
+    if (targetId) {
+      set({ tabMenuTerminalId: targetId });
+    }
   },
 
   loadDirs: async () => {
@@ -1734,7 +1736,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
         // Sanitize cwd: skip executable paths that were incorrectly saved as cwd
         let cwd = info.cwd || '';
         if (/\.(exe|cmd|bat|com|ps1|sh|msi|dll)$/i.test(cwd) || !cwd) {
-          cwd = profile.cwd || (navigator.platform.startsWith('Win') ? 'C:\\Users' : process.env.HOME || '/');
+          cwd = profile.cwd || (navigator.platform.startsWith('Win') ? 'C:\\Users' : '/');
         }
         try {
           const { pid } = await window.terminalAPI.createPty({

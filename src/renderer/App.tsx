@@ -8,6 +8,7 @@ import { useTerminalStore } from './state/terminal-store';
 import type { CopilotSessionSummary } from '../shared/copilot-types';
 import { useKeybindings } from './hooks/useKeybindings';
 import { useDragTerminal } from './hooks/useDragTerminal';
+import { isMac } from './utils/platform';
 import TabBar from './components/TabBar';
 import TilingLayout from './components/TilingLayout';
 import FloatingLayer from './components/FloatingLayer';
@@ -68,9 +69,9 @@ const App: React.FC = () => {
     }
     init();
 
-    // Prevent Chromium CSS zoom on Ctrl+wheel anywhere outside terminals
+    // Prevent Chromium CSS zoom on Ctrl+wheel (Cmd+wheel on Mac) anywhere outside terminals
     const handleGlobalWheel = (e: WheelEvent) => {
-      if (e.ctrlKey) e.preventDefault();
+      if (e.ctrlKey || (isMac && e.metaKey)) e.preventDefault();
     };
     document.addEventListener('wheel', handleGlobalWheel, { passive: false });
 

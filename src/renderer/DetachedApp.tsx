@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
+import { isMac } from './utils/platform';
 import '@xterm/xterm/css/xterm.css';
 
 function hexToTerminalRgba(hex: string, alpha: number): string {
@@ -85,12 +86,12 @@ const DetachedApp: React.FC<DetachedAppProps> = ({ terminalId }) => {
           }
           return false;
         }
-        if (event.ctrlKey && !event.shiftKey && event.key === 'c' && term.hasSelection()) {
+        if ((isMac ? event.metaKey : event.ctrlKey) && !event.shiftKey && event.key === 'c' && term.hasSelection()) {
           navigator.clipboard.writeText(term.getSelection());
           term.clearSelection();
           return false;
         }
-        if (event.ctrlKey && event.shiftKey && event.key === 'C') {
+        if ((isMac ? event.metaKey : event.ctrlKey) && event.shiftKey && event.key === 'C') {
           const sel = term.getSelection();
           if (sel) navigator.clipboard.writeText(sel);
           return false;

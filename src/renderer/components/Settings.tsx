@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useTerminalStore } from '../state/terminal-store';
+import { isMac, formatKeyForPlatform } from '../utils/platform';
 
 type Tab = 'terminal' | 'keybindings' | 'shells' | 'theme' | 'appearance';
 
@@ -154,7 +155,8 @@ const KeybindingsSettings: React.FC = () => {
       e.stopPropagation();
 
       const parts: string[] = [];
-      if (e.ctrlKey) parts.push('Ctrl');
+      // On Mac, record Cmd (metaKey) as Ctrl for cross-platform storage consistency
+      if (isMac ? e.metaKey : e.ctrlKey) parts.push('Ctrl');
       if (e.shiftKey) parts.push('Shift');
       if (e.altKey) parts.push('Alt');
 
@@ -194,7 +196,7 @@ const KeybindingsSettings: React.FC = () => {
             className={`keybinding-key${recording === binding.originalIndex ? ' recording' : ''}`}
             onClick={() => handleRecord(binding.originalIndex)}
           >
-            {recording === binding.originalIndex ? 'Press keys...' : binding.key}
+            {recording === binding.originalIndex ? 'Press keys...' : formatKeyForPlatform(binding.key)}
           </button>
         </div>
       ))}

@@ -6,6 +6,7 @@ import { SearchAddon } from '@xterm/addon-search';
 import { useTerminalStore } from '../state/terminal-store';
 import { registerTerminal, unregisterTerminal } from '../terminal-registry';
 import type { AppConfig } from '../state/types';
+import { isMac } from '../utils/platform';
 import '@xterm/xterm/css/xterm.css';
 
 function hexToTerminalRgba(hex: string, alpha: number): string {
@@ -185,13 +186,13 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
     // Keyboard shortcuts handled inside terminal
     term.attachCustomKeyEventHandler((event) => {
       if (event.type !== 'keydown') return true;
-      // Ctrl+Shift+`: toggle diagnostics overlay
-      if (event.ctrlKey && event.shiftKey && event.key === '`') {
+      // Ctrl+Shift+` (Cmd+Shift+` on Mac): toggle diagnostics overlay
+      if ((isMac ? event.metaKey : event.ctrlKey) && event.shiftKey && event.key === '`') {
         setShowDiag((v) => !v);
         return false;
       }
-      // Ctrl+F: open search
-      if (event.ctrlKey && !event.shiftKey && (event.key === 'f' || event.key === 'F')) {
+      // Ctrl+F (Cmd+F on Mac): open search
+      if ((isMac ? event.metaKey : event.ctrlKey) && !event.shiftKey && (event.key === 'f' || event.key === 'F')) {
         setShowSearch(true);
         requestAnimationFrame(() => searchInputRef.current?.focus());
         return false;
@@ -209,14 +210,14 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
         }
         return false;
       }
-      // Ctrl+C with selection: copy instead of SIGINT
-      if (event.ctrlKey && !event.shiftKey && (event.key === 'c' || event.key === 'C') && term.hasSelection()) {
+      // Ctrl+C with selection: copy instead of SIGINT (Cmd+C on Mac)
+      if ((isMac ? event.metaKey : event.ctrlKey) && !event.shiftKey && (event.key === 'c' || event.key === 'C') && term.hasSelection()) {
         window.terminalAPI.clipboardWrite(term.getSelection());
         term.clearSelection();
         return false;
       }
-      // Ctrl+Shift+C: always copy selection
-      if (event.ctrlKey && event.shiftKey && (event.key === 'c' || event.key === 'C')) {
+      // Ctrl+Shift+C (Cmd+Shift+C on Mac): always copy selection
+      if ((isMac ? event.metaKey : event.ctrlKey) && event.shiftKey && (event.key === 'c' || event.key === 'C')) {
         const sel = term.getSelection();
         if (sel) window.terminalAPI.clipboardWrite(sel);
         return false;
