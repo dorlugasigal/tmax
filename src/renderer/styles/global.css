@@ -291,18 +291,6 @@ html.transparency-active .input-dialog {
   margin-left: 2px;
 }
 
-.tab-group-slot {
-  flex-shrink: 0;
-}
-
-.tab-group-slot .tab {
-  border-top: 2px solid var(--group-color, transparent);
-}
-
-.tab-bar.vertical .tab-group-slot .tab {
-  border-top: none;
-  border-left: 2px solid var(--group-color, transparent);
-}
 
 .tab-bar.vertical .tab-group-header {
   padding: 4px 8px;
