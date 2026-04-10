@@ -266,7 +266,7 @@ const FileExplorer: React.FC = () => {
               }
               setCtxMenu(null);
             }}>
-              cd Here
+              CD Here
             </button>
           )}
           <button className="context-menu-item" onClick={() => {
