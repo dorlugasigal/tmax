@@ -96,7 +96,7 @@ const DEFAULT_BINDINGS: Record<string, string> = {
   'Ctrl+Shift+C': 'copilotPanel',
   'Ctrl+Shift+K': 'showPrompts',
   'Ctrl+Shift+B': 'hideTabBar',
-  'Ctrl+Shift+X': 'fileExplorer',
+  'Ctrl+Shift+A': 'fileExplorer',
   'Ctrl+Shift+L': 'cycleGridColumns',
   'Ctrl+Shift+O': 'colorizeAllTabs',
   'F5': 'continueAgent',

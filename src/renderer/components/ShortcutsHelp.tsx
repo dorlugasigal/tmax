@@ -37,7 +37,7 @@ const shortcuts = [
   ]},
   { category: 'Other', items: [
     { key: 'Ctrl+Shift+B', action: 'Hide / show tab bar' },
-    { key: 'Ctrl+Shift+X', action: 'File explorer' },
+    { key: 'Ctrl+Shift+A', action: 'File explorer' },
     { key: 'Ctrl+Shift+?', action: 'Show this help' },
     { key: 'Double-click tab', action: 'Rename terminal' },
     { key: 'Right-click tab', action: 'Context menu' },

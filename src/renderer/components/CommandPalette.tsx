@@ -66,7 +66,7 @@ const CommandPalette: React.FC = () => {
       { id: 'colorizeAllTabs', label: 'Toggle Tab Colors', shortcut: 'Ctrl+Shift+O', action: () => store().colorizeAllTabs() },
       { id: 'toggleTabBar', label: 'Toggle Tab Bar: Top / Left', action: () => store().toggleTabBarPosition() },
       { id: 'hideTabBar', label: 'Hide / Show Tab Bar', shortcut: 'Ctrl+Shift+B', action: () => store().toggleHideTabTitles() },
-      { id: 'fileExplorer', label: 'File Explorer', shortcut: 'Ctrl+Shift+X', action: () => store().toggleFileExplorer() },
+      { id: 'fileExplorer', label: 'File Explorer', shortcut: 'Ctrl+Shift+A', action: () => store().toggleFileExplorer() },
       { id: 'refocus', label: 'Re-focus Terminal (fix stuck input)', action: () => {
         const id = focusedId();
         if (id) {
