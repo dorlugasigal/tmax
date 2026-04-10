@@ -387,6 +387,7 @@ interface TerminalStore {
   showCopilotPanel: boolean;
   copilotSessions: CopilotSessionSummary[];
   claudeCodeSessions: CopilotSessionSummary[];
+  sessionNameOverrides: Record<string, string>;
   copilotSearchQuery: string;
   selectedCopilotSessionId: string | null;
   // Prompts dialog state
@@ -478,6 +479,7 @@ interface TerminalStore {
   addClaudeCodeSession: (session: CopilotSessionSummary) => void;
   updateClaudeCodeSession: (session: CopilotSessionSummary) => void;
   removeClaudeCodeSession: (sessionId: string) => void;
+  setSessionNameOverride: (sessionId: string, name: string) => void;
   resumeAllSessions: () => void;
   // Prompts dialog action
   showPromptsForTerminal: (terminalId: TerminalId) => void;
@@ -521,6 +523,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   promptsDialogRequest: null,
   copilotSessions: [],
   claudeCodeSessions: [],
+  sessionNameOverrides: {},
   copilotSearchQuery: '',
   selectedCopilotSessionId: null,
   tabGroups: new Map(),
@@ -1199,6 +1202,10 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     if (custom) updatedInstance.aiAutoTitle = false;
     newTerminals.set(id, updatedInstance);
     set({ terminals: newTerminals });
+    // Propagate custom rename to linked AI session
+    if (custom && instance.aiSessionId) {
+      get().setSessionNameOverride(instance.aiSessionId, title);
+    }
   },
 
   setTabColor: (id: TerminalId, color: string | undefined) => {
@@ -1704,6 +1711,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       favoriteDirs,
       recentDirs,
       autoColorTabs: get().autoColorTabs,
+      sessionNameOverrides: get().sessionNameOverrides,
       tree: layout.tilingRoot ? serializeNode(layout.tilingRoot) : null,
       floating: layout.floatingPanels.map((p) => {
         const t = terminals.get(p.terminalId);
@@ -1722,6 +1730,10 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
 
     if (typeof session.autoColorTabs === 'boolean') {
       set({ autoColorTabs: session.autoColorTabs });
+    }
+
+    if (session.sessionNameOverrides && typeof session.sessionNameOverrides === 'object') {
+      set({ sessionNameOverrides: session.sessionNameOverrides as Record<string, string> });
     }
 
     const { config } = get();
@@ -2143,6 +2155,12 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   removeClaudeCodeSession: (sessionId: string) => {
     set((s) => ({
       claudeCodeSessions: s.claudeCodeSessions.filter((x) => x.id !== sessionId),
+    }));
+  },
+
+  setSessionNameOverride: (sessionId: string, name: string) => {
+    set((s) => ({
+      sessionNameOverrides: { ...s.sessionNameOverrides, [sessionId]: name },
     }));
   },
 
