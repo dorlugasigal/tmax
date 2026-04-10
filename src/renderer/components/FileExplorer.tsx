@@ -97,13 +97,20 @@ const FileExplorer: React.FC = () => {
 
   const q = filter.toLowerCase();
 
-  const renderEntry = (entry: FileEntry, depth: number): React.ReactNode => {
-    if (q && !entry.name.toLowerCase().includes(q)) {
-      // If directory, check if any children match
-      if (entry.isDirectory && children[entry.path]) {
-        const hasMatch = children[entry.path].some((c) => c.name.toLowerCase().includes(q));
-        if (!hasMatch) return null;
-      } else if (!entry.isDirectory) {
+  const renderEntry = (entry: FileEntry, depth: number, parentMatches?: boolean): React.ReactNode => {
+    const nameMatches = !q || entry.name.toLowerCase().includes(q);
+    if (!nameMatches && !parentMatches) {
+      // For directories: show if any loaded children match, or if expanded (children loading)
+      if (entry.isDirectory) {
+        if (expanded[entry.path]) {
+          // Keep visible while expanded — children may still be loading
+        } else if (children[entry.path]) {
+          const hasMatch = children[entry.path].some((c) => c.name.toLowerCase().includes(q));
+          if (!hasMatch) return null;
+        } else {
+          return null;
+        }
+      } else {
         return null;
       }
     }
@@ -139,7 +146,7 @@ const FileExplorer: React.FC = () => {
         </div>
         {entry.isDirectory && expanded[entry.path] && children[entry.path] && (
           <div className="file-children" style={{ borderLeft: '1px solid var(--border-color)', marginLeft: 19 + depth * 16 }}>
-            {children[entry.path].map((child) => renderEntry(child, depth + 1))}
+            {children[entry.path].map((child) => renderEntry(child, depth + 1, nameMatches))}
           </div>
         )}
       </div>

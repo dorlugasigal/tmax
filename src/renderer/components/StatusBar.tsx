@@ -133,7 +133,7 @@ const StatusBar: React.FC = () => {
           <button
             className="status-mode-btn"
             onClick={() => useTerminalStore.getState().toggleFileExplorer()}
-            title={formatKeyForPlatform("File Explorer (Ctrl+Shift+A)")}
+            title={formatKeyForPlatform("File Explorer (Ctrl+Shift+X)")}
           >
             &#128196; Explorer
           </button>
