@@ -76,6 +76,7 @@ const CopilotPanel: React.FC = () => {
   const copilotSessions = useTerminalStore((s) => s.copilotSessions);
   const claudeCodeSessions = useTerminalStore((s) => s.claudeCodeSessions);
   const terminals = useTerminalStore((s) => s.terminals);
+  const focusedTerminalId = useTerminalStore((s) => s.focusedTerminalId);
   const summaryOverrides = useTerminalStore((s) => s.sessionNameOverrides);
   const lifecycleOverrides = useTerminalStore((s) => s.sessionLifecycleOverrides);
 
@@ -199,6 +200,46 @@ const CopilotPanel: React.FC = () => {
       setSelectedIndex(Math.max(0, filtered.length - 1));
     }
   }, [filtered.length, selectedIndex]);
+
+  // When the focused terminal changes, highlight its AI session in the panel
+  const prevFocusedRef = useRef<string | null>(null);
+  const pendingSessionHighlight = useRef<string | null>(null);
+  useEffect(() => {
+    // After a tab switch, resolve the pending highlight
+    if (pendingSessionHighlight.current) {
+      const idx = filtered.findIndex((s) => s.id === pendingSessionHighlight.current);
+      if (idx >= 0) {
+        setSelectedIndex(idx);
+      }
+      pendingSessionHighlight.current = null;
+    }
+
+    if (!show || !focusedTerminalId || focusedTerminalId === prevFocusedRef.current) return;
+    prevFocusedRef.current = focusedTerminalId;
+
+    const terminal = terminals.get(focusedTerminalId);
+    if (!terminal?.aiSessionId) return;
+
+    const sessionId = terminal.aiSessionId;
+
+    // Check if the session is visible in the current filtered list
+    const idx = filtered.findIndex((s) => s.id === sessionId);
+    if (idx >= 0) {
+      setSelectedIndex(idx);
+      return;
+    }
+
+    // Session not in current tab — switch tabs and queue the highlight
+    const allSessions = [...copilotSessions, ...claudeCodeSessions];
+    const session = allSessions.find((s) => s.id === sessionId);
+    if (session) {
+      const lifecycle = getSessionLifecycle(session);
+      if (lifecycle !== lifecycleTab) {
+        pendingSessionHighlight.current = sessionId;
+        setLifecycleTab(lifecycle);
+      }
+    }
+  }, [focusedTerminalId, show, terminals, filtered, copilotSessions, claudeCodeSessions, getSessionLifecycle, lifecycleTab]);
 
   useEffect(() => {
     if (listRef.current) {
@@ -511,7 +552,7 @@ const CopilotPanel: React.FC = () => {
 
       <div className="dir-panel-list" ref={listRef}>
         {filtered.map((session, index) => {
-          const title = getTitle(session);
+          const title = summaryOverrides[session.id] || getTitle(session);
           const subtitle = getSubtitle(session);
           const active = isActiveStatus(session.status);
           const isOpen = openSessionIds.has(session.id);

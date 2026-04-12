@@ -2212,12 +2212,14 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     set((s) => ({
       sessionNameOverrides: { ...s.sessionNameOverrides, [sessionId]: name },
     }));
+    get().saveSession();
   },
 
   setSessionLifecycle: (sessionId: string, lifecycle: import('../../shared/copilot-types').SessionLifecycle) => {
     set((s) => ({
       sessionLifecycleOverrides: { ...s.sessionLifecycleOverrides, [sessionId]: lifecycle },
     }));
+    get().saveSession();
   },
 
   checkStaleActiveSessions: () => {
@@ -2239,6 +2241,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       set((st) => ({
         sessionLifecycleOverrides: { ...st.sessionLifecycleOverrides, ...updates },
       }));
+      get().saveSession();
     }
   },
 
