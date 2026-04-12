@@ -6,6 +6,7 @@ export type CopilotSessionStatus =
   | 'waitingForUser';
 
 export type SessionProvider = 'copilot' | 'claude-code';
+export type SessionLifecycle = 'active' | 'completed' | 'old';
 
 export interface CopilotSessionSummary {
   id: string;
