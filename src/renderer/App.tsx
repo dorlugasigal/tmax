@@ -23,6 +23,7 @@ import CopilotPanel from './components/CopilotPanel';
 import DiffReview from './components/DiffReview';
 import FileExplorer from './components/FileExplorer';
 import FloatingRenameInput from './components/FloatingRenameInput';
+import Toast from './components/Toast';
 
 const App: React.FC = () => {
   const loadConfig = useTerminalStore((s) => s.loadConfig);
@@ -55,6 +56,8 @@ const App: React.FC = () => {
         await useTerminalStore.getState().loadCopilotSessions();
         await useTerminalStore.getState().loadClaudeCodeSessions();
         if (cancelled) return;
+        // Check for stale active sessions (>30 days) on startup
+        useTerminalStore.getState().checkStaleActiveSessions();
         if (useTerminalStore.getState().terminals.size === 0) {
           const restored = await useTerminalStore.getState().restoreSession();
           if (cancelled) return;
@@ -104,12 +107,18 @@ const App: React.FC = () => {
       useTerminalStore.getState().reattachTerminal(id);
     });
 
+    // Periodic stale session check (every 6 hours)
+    const staleCheckInterval = setInterval(() => {
+      useTerminalStore.getState().checkStaleActiveSessions();
+    }, 6 * 60 * 60 * 1000);
+
     return () => {
       cancelled = true;
       document.removeEventListener('wheel', handleGlobalWheel);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       clearInterval(autoSaveInterval);
       clearInterval(heartbeatInterval);
+      clearInterval(staleCheckInterval);
       unsubDetached?.();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -198,6 +207,7 @@ const App: React.FC = () => {
         )}
         <DiffReview />
         <FloatingRenameInput />
+        <Toast />
       </div>
     </DndContext>
   );

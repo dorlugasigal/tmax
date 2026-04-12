@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import ReactDOM from 'react-dom';
 import { useTerminalStore } from '../state/terminal-store';
 import { getTerminalEntry } from '../terminal-registry';
-import type { CopilotSessionSummary, CopilotSessionStatus, SessionProvider } from '../../shared/copilot-types';
+import type { CopilotSessionSummary, CopilotSessionStatus, SessionProvider, SessionLifecycle } from '../../shared/copilot-types';
 
 const MIN_WIDTH = 180;
 const MAX_WIDTH = 600;
@@ -25,6 +25,7 @@ const STATUS_LABELS: Record<CopilotSessionStatus, string> = {
 };
 
 type FilterTab = 'all' | 'copilot' | 'claude-code';
+type LifecycleTab = 'active' | 'completed' | 'old';
 
 function isActiveStatus(status: CopilotSessionStatus): boolean {
   return status !== 'idle';
@@ -76,6 +77,7 @@ const CopilotPanel: React.FC = () => {
   const claudeCodeSessions = useTerminalStore((s) => s.claudeCodeSessions);
   const terminals = useTerminalStore((s) => s.terminals);
   const summaryOverrides = useTerminalStore((s) => s.sessionNameOverrides);
+  const lifecycleOverrides = useTerminalStore((s) => s.sessionLifecycleOverrides);
 
   // Track which AI session IDs have open terminals
   const openSessionIds = useMemo(() => {
@@ -90,6 +92,9 @@ const CopilotPanel: React.FC = () => {
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [resizing, setResizing] = useState(false);
   const [filterTab, setFilterTab] = useState<FilterTab>('all');
+  const [lifecycleTab, setLifecycleTab] = useState<LifecycleTab>('active');
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; session: CopilotSessionSummary } | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; provider: SessionProvider; value: string } | null>(null);
   const [promptsDialog, setPromptsDialog] = useState<{ title: string; prompts: string[]; terminalId: string | null } | null>(null);
@@ -122,6 +127,16 @@ const CopilotPanel: React.FC = () => {
     return () => clearInterval(timer);
   }, [show]);
 
+  // Helper to get lifecycle of a session
+  const getSessionLifecycle = useCallback((s: CopilotSessionSummary): SessionLifecycle => {
+    const override = lifecycleOverrides[s.id];
+    if (override) return override;
+    // Default: active unless stale (>30 days)
+    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+    if (s.lastActivityTime && s.lastActivityTime < Date.now() - thirtyDaysMs) return 'old';
+    return 'active';
+  }, [lifecycleOverrides]);
+
   // Merge, deduplicate, and filter sessions
   const filtered = useMemo(() => {
     let all = [
@@ -129,7 +144,7 @@ const CopilotPanel: React.FC = () => {
       ...claudeCodeSessions.filter((s) => s.messageCount > 0).map((s) => ({ ...s, provider: s.provider || 'claude-code' as const })),
     ].map((s) => summaryOverrides[s.id] ? { ...s, summary: summaryOverrides[s.id] } : s);
 
-    // Filter by provider tab
+    // Filter by provider
     if (filterTab !== 'all') {
       all = all.filter((s) => s.provider === filterTab);
     }
@@ -138,9 +153,6 @@ const CopilotPanel: React.FC = () => {
     if (showRunningOnly) {
       all = all.filter((s) => s.status !== 'idle');
     }
-
-    // When searching, the backend already filters by prompts + metadata,
-    // so no additional local filtering needed
 
     // Deduplicate by session ID
     const byId = new Map<string, CopilotSessionSummary>();
@@ -151,8 +163,33 @@ const CopilotPanel: React.FC = () => {
       }
     }
 
-    return sortSessions(Array.from(byId.values()));
-  }, [copilotSessions, claudeCodeSessions, query, filterTab, showRunningOnly, summaryOverrides]);
+    // Filter by lifecycle tab
+    const deduped = Array.from(byId.values());
+    const lifecycleFiltered = deduped.filter((s) => getSessionLifecycle(s) === lifecycleTab);
+
+    return sortSessions(lifecycleFiltered);
+  }, [copilotSessions, claudeCodeSessions, query, filterTab, showRunningOnly, summaryOverrides, lifecycleTab, getSessionLifecycle]);
+
+  // Lifecycle counts (for tab badges) — computed from all sessions regardless of provider/running filter
+  const lifecycleCounts = useMemo(() => {
+    const allSessions = [
+      ...copilotSessions.filter((s) => s.messageCount > 0),
+      ...claudeCodeSessions.filter((s) => s.messageCount > 0),
+    ];
+    // Deduplicate
+    const byId = new Map<string, CopilotSessionSummary>();
+    for (const s of allSessions) {
+      const existing = byId.get(s.id);
+      if (!existing || (s.lastActivityTime || 0) > (existing.lastActivityTime || 0)) {
+        byId.set(s.id, s);
+      }
+    }
+    const counts = { active: 0, completed: 0, old: 0 };
+    for (const s of byId.values()) {
+      counts[getSessionLifecycle(s)]++;
+    }
+    return counts;
+  }, [copilotSessions, claudeCodeSessions, getSessionLifecycle]);
 
   useEffect(() => {
     if (selectedIndex >= filtered.length) {
@@ -177,6 +214,16 @@ const CopilotPanel: React.FC = () => {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [ctxMenu]);
+
+  // Close filter dropdown on outside click
+  useEffect(() => {
+    if (!showFilterDropdown) return;
+    const handler = (e: MouseEvent) => {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target as Node)) setShowFilterDropdown(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showFilterDropdown]);
 
   // Focus rename input
   useEffect(() => {
@@ -375,6 +422,42 @@ const CopilotPanel: React.FC = () => {
       <div className="dir-panel-header">
         <span>AI Sessions</span>
         <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+          <div className="ai-filter-wrapper" ref={filterDropdownRef}>
+            <button
+              className={`ai-filter-button${filterTab !== 'all' ? ' has-filter' : ''}`}
+              onClick={() => setShowFilterDropdown((v) => !v)}
+              title={`Filter: ${filterTab === 'all' ? 'All providers' : PROVIDER_LABEL[filterTab as SessionProvider] || filterTab}`}
+            >
+              ⚙
+              {filterTab !== 'all' && <span className="ai-filter-badge" />}
+            </button>
+            {showFilterDropdown && (
+              <div className="ai-filter-dropdown">
+                <button
+                  className={`ai-filter-option${filterTab === 'all' ? ' active' : ''}`}
+                  onClick={() => { setFilterTab('all'); setShowFilterDropdown(false); }}
+                >
+                  All providers
+                </button>
+                {copilotCount > 0 && (
+                  <button
+                    className={`ai-filter-option${filterTab === 'copilot' ? ' active' : ''}`}
+                    onClick={() => { setFilterTab('copilot'); setShowFilterDropdown(false); }}
+                  >
+                    Copilot ({copilotCount})
+                  </button>
+                )}
+                {claudeCount > 0 && (
+                  <button
+                    className={`ai-filter-option${filterTab === 'claude-code' ? ' active' : ''}`}
+                    onClick={() => { setFilterTab('claude-code'); setShowFilterDropdown(false); }}
+                  >
+                    Claude ({claudeCount})
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           <button
             className={`ai-session-tab${showRunningOnly ? ' active' : ''}`}
             onClick={() => setShowRunningOnly((v) => !v)}
@@ -388,30 +471,26 @@ const CopilotPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter tabs */}
+      {/* Lifecycle tabs */}
       <div className="ai-session-tabs">
         <button
-          className={`ai-session-tab${filterTab === 'all' ? ' active' : ''}`}
-          onClick={() => setFilterTab('all')}
+          className={`ai-session-tab${lifecycleTab === 'active' ? ' active' : ''}`}
+          onClick={() => setLifecycleTab('active')}
         >
-          All{allCount > 0 ? ` (${allCount})` : ''}
+          Active{lifecycleCounts.active > 0 ? ` (${lifecycleCounts.active})` : ''}
         </button>
-        {copilotCount > 0 && (
-          <button
-            className={`ai-session-tab${filterTab === 'copilot' ? ' active' : ''}`}
-            onClick={() => setFilterTab('copilot')}
-          >
-            Copilot
-          </button>
-        )}
-        {claudeCount > 0 && (
-          <button
-            className={`ai-session-tab${filterTab === 'claude-code' ? ' active' : ''}`}
-            onClick={() => setFilterTab('claude-code')}
-          >
-            Claude
-          </button>
-        )}
+        <button
+          className={`ai-session-tab${lifecycleTab === 'completed' ? ' active' : ''}`}
+          onClick={() => setLifecycleTab('completed')}
+        >
+          Completed{lifecycleCounts.completed > 0 ? ` (${lifecycleCounts.completed})` : ''}
+        </button>
+        <button
+          className={`ai-session-tab${lifecycleTab === 'old' ? ' active' : ''}`}
+          onClick={() => setLifecycleTab('old')}
+        >
+          Old{lifecycleCounts.old > 0 ? ` (${lifecycleCounts.old})` : ''}
+        </button>
       </div>
 
       <input
@@ -504,13 +583,42 @@ const CopilotPanel: React.FC = () => {
                   )}
                 </div>
               </div>
+              {/* Complete button (Active tab) or Reactivate button (Completed/Old tabs) */}
+              {lifecycleTab === 'active' && (
+                <button
+                  className="ai-session-lifecycle-btn ai-session-complete-btn"
+                  title="Mark as completed"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    useTerminalStore.getState().setSessionLifecycle(session.id, 'completed');
+                  }}
+                >
+                  ✓
+                </button>
+              )}
+              {(lifecycleTab === 'completed' || lifecycleTab === 'old') && (
+                <button
+                  className="ai-session-lifecycle-btn ai-session-reactivate-btn"
+                  title="Move back to Active"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    useTerminalStore.getState().setSessionLifecycle(session.id, 'active');
+                  }}
+                >
+                  ↩
+                </button>
+              )}
             </div>
           );
         })}
         {filtered.length === 0 && (
           <div className="dir-panel-empty">
-            {allCount === 0
+            {lifecycleTab === 'active' && allCount === 0
               ? 'No AI sessions found'
+              : lifecycleTab === 'completed'
+              ? 'No completed sessions'
+              : lifecycleTab === 'old'
+              ? 'No old sessions'
               : 'No matching sessions'}
           </div>
         )}

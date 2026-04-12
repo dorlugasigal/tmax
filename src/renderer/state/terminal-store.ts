@@ -530,6 +530,8 @@ interface TerminalStore {
   copilotSessions: CopilotSessionSummary[];
   claudeCodeSessions: CopilotSessionSummary[];
   sessionNameOverrides: Record<string, string>;
+  sessionLifecycleOverrides: Record<string, import('../../shared/copilot-types').SessionLifecycle>;
+  toastNotifications: Array<{ id: string; message: string; timestamp: number }>;
   copilotSearchQuery: string;
   selectedCopilotSessionId: string | null;
   // Prompts dialog state
@@ -622,6 +624,10 @@ interface TerminalStore {
   updateClaudeCodeSession: (session: CopilotSessionSummary) => void;
   removeClaudeCodeSession: (sessionId: string) => void;
   setSessionNameOverride: (sessionId: string, name: string) => void;
+  setSessionLifecycle: (sessionId: string, lifecycle: import('../../shared/copilot-types').SessionLifecycle) => void;
+  checkStaleActiveSessions: () => void;
+  addToast: (message: string) => void;
+  dismissToast: (id: string) => void;
   resumeAllSessions: () => void;
   // Prompts dialog action
   showPromptsForTerminal: (terminalId: TerminalId) => void;
@@ -666,6 +672,8 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   copilotSessions: [],
   claudeCodeSessions: [],
   sessionNameOverrides: {},
+  sessionLifecycleOverrides: {},
+  toastNotifications: [],
   copilotSearchQuery: '',
   selectedCopilotSessionId: null,
   tabGroups: new Map(),
@@ -1886,6 +1894,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       recentDirs,
       autoColorTabs: get().autoColorTabs,
       sessionNameOverrides: get().sessionNameOverrides,
+      sessionLifecycleOverrides: get().sessionLifecycleOverrides,
       tree: layout.tilingRoot ? serializeNode(layout.tilingRoot) : null,
       floating: layout.floatingPanels.map((p) => {
         const t = terminals.get(p.terminalId);
@@ -1908,6 +1917,10 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
 
     if (session.sessionNameOverrides && typeof session.sessionNameOverrides === 'object') {
       set({ sessionNameOverrides: session.sessionNameOverrides as Record<string, string> });
+    }
+
+    if (session.sessionLifecycleOverrides && typeof session.sessionLifecycleOverrides === 'object') {
+      set({ sessionLifecycleOverrides: session.sessionLifecycleOverrides as Record<string, import('../../shared/copilot-types').SessionLifecycle> });
     }
 
     const { config } = get();
@@ -2117,10 +2130,20 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   },
 
   updateCopilotSession: (session: CopilotSessionSummary) => {
+    const oldSession = get().copilotSessions.find((x) => x.id === session.id);
     set((s) => ({
       copilotSessions: s.copilotSessions.map((x) => (x.id === session.id ? session : x)),
     }));
     get().updateTerminalTitleFromSession(session, 'copilot');
+    // Auto-reactivate if session was completed/old and has new activity
+    const lifecycle = get().sessionLifecycleOverrides[session.id];
+    if ((lifecycle === 'completed' || lifecycle === 'old') && oldSession) {
+      const hasNewActivity = session.status !== 'idle' || session.messageCount > oldSession.messageCount;
+      if (hasNewActivity) {
+        get().setSessionLifecycle(session.id, 'active');
+        get().addToast(`Session "${session.summary || session.id.slice(0, 8)}" reactivated`);
+      }
+    }
   },
 
   removeCopilotSession: (sessionId: string) => {
@@ -2158,10 +2181,20 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   },
 
   updateClaudeCodeSession: (session: CopilotSessionSummary) => {
+    const oldSession = get().claudeCodeSessions.find((x) => x.id === session.id);
     set((s) => ({
       claudeCodeSessions: s.claudeCodeSessions.map((x) => (x.id === session.id ? session : x)),
     }));
     get().updateTerminalTitleFromSession(session, 'claude');
+    // Auto-reactivate if session was completed/old and has new activity
+    const lifecycle = get().sessionLifecycleOverrides[session.id];
+    if ((lifecycle === 'completed' || lifecycle === 'old') && oldSession) {
+      const hasNewActivity = session.status !== 'idle' || session.messageCount > oldSession.messageCount;
+      if (hasNewActivity) {
+        get().setSessionLifecycle(session.id, 'active');
+        get().addToast(`Session "${session.summary || session.id.slice(0, 8)}" reactivated`);
+      }
+    }
   },
 
   removeClaudeCodeSession: (sessionId: string) => {
@@ -2173,6 +2206,52 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   setSessionNameOverride: (sessionId: string, name: string) => {
     set((s) => ({
       sessionNameOverrides: { ...s.sessionNameOverrides, [sessionId]: name },
+    }));
+  },
+
+  setSessionLifecycle: (sessionId: string, lifecycle: import('../../shared/copilot-types').SessionLifecycle) => {
+    set((s) => ({
+      sessionLifecycleOverrides: { ...s.sessionLifecycleOverrides, [sessionId]: lifecycle },
+    }));
+  },
+
+  checkStaleActiveSessions: () => {
+    const { copilotSessions, claudeCodeSessions, sessionLifecycleOverrides } = get();
+    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+    const cutoff = Date.now() - thirtyDaysMs;
+    const allSessions = [...copilotSessions, ...claudeCodeSessions];
+    const updates: Record<string, import('../../shared/copilot-types').SessionLifecycle> = {};
+    for (const s of allSessions) {
+      const current = sessionLifecycleOverrides[s.id];
+      if (current === 'completed') continue;
+      if (!current || current === 'active') {
+        if (s.lastActivityTime && s.lastActivityTime < cutoff) {
+          updates[s.id] = 'old';
+        }
+      }
+    }
+    if (Object.keys(updates).length > 0) {
+      set((st) => ({
+        sessionLifecycleOverrides: { ...st.sessionLifecycleOverrides, ...updates },
+      }));
+    }
+  },
+
+  addToast: (message: string) => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    set((s) => ({
+      toastNotifications: [...s.toastNotifications, { id, message, timestamp: Date.now() }],
+    }));
+    setTimeout(() => {
+      set((s) => ({
+        toastNotifications: s.toastNotifications.filter((t) => t.id !== id),
+      }));
+    }, 5000);
+  },
+
+  dismissToast: (id: string) => {
+    set((s) => ({
+      toastNotifications: s.toastNotifications.filter((t) => t.id !== id),
     }));
   },
 
