@@ -126,6 +126,10 @@ const TerminalSettings: React.FC = () => {
           placeholder="claude"
           onChange={(e) => update({ claudeCodeCommand: e.target.value } as any)} />
       </SettingRow>
+      <SettingRow label="Old Session Threshold" description="Days of inactivity before a session is marked as Old">
+        <input type="number" className="settings-input small" value={(config as any).oldSessionDays ?? 30}
+          onChange={(e) => update({ oldSessionDays: parseInt(e.target.value) || 30 } as any)} />
+      </SettingRow>
     </div>
   );
 };

@@ -755,7 +755,7 @@ html.transparency-active .input-dialog {
 }
 
 .terminal-panel .xterm-container .xterm {
-  padding: 4px;
+  padding: 4px 4px 0 4px;
 }
 
 .terminal-search-bar {
@@ -2989,6 +2989,11 @@ select.settings-input {
 .ai-session-item:hover,
 .ai-session-item.selected {
   background: rgba(137, 180, 250, 0.08);
+  border-left-color: var(--focus-border);
+}
+
+.ai-session-item.multi-selected {
+  background: rgba(137, 180, 250, 0.15);
   border-left-color: var(--focus-border);
 }
 

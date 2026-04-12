@@ -2141,7 +2141,8 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       const hasNewActivity = session.status !== 'idle' || session.messageCount > oldSession.messageCount;
       if (hasNewActivity) {
         get().setSessionLifecycle(session.id, 'active');
-        get().addToast(`Session "${session.summary || session.id.slice(0, 8)}" reactivated`);
+        const name = get().sessionNameOverrides[session.id] || session.summary || session.id.slice(0, 8);
+        get().addToast(`"${name}" moved back to Active`);
       }
     }
   },
@@ -2192,7 +2193,8 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       const hasNewActivity = session.status !== 'idle' || session.messageCount > oldSession.messageCount;
       if (hasNewActivity) {
         get().setSessionLifecycle(session.id, 'active');
-        get().addToast(`Session "${session.summary || session.id.slice(0, 8)}" reactivated`);
+        const name = get().sessionNameOverrides[session.id] || session.summary || session.id.slice(0, 8);
+        get().addToast(`"${name}" moved back to Active`);
       }
     }
   },
@@ -2216,9 +2218,9 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   },
 
   checkStaleActiveSessions: () => {
-    const { copilotSessions, claudeCodeSessions, sessionLifecycleOverrides } = get();
-    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
-    const cutoff = Date.now() - thirtyDaysMs;
+    const { copilotSessions, claudeCodeSessions, sessionLifecycleOverrides, config } = get();
+    const days = (config as any)?.oldSessionDays ?? 30;
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
     const allSessions = [...copilotSessions, ...claudeCodeSessions];
     const updates: Record<string, import('../../shared/copilot-types').SessionLifecycle> = {};
     for (const s of allSessions) {

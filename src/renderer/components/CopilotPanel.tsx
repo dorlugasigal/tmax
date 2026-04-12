@@ -89,6 +89,7 @@ const CopilotPanel: React.FC = () => {
   }, [terminals]);
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [resizing, setResizing] = useState(false);
   const [filterTab, setFilterTab] = useState<FilterTab>('all');
@@ -128,14 +129,16 @@ const CopilotPanel: React.FC = () => {
   }, [show]);
 
   // Helper to get lifecycle of a session
+  const config = useTerminalStore((s) => s.config);
+  const oldSessionDays = (config as any)?.oldSessionDays ?? 30;
+
   const getSessionLifecycle = useCallback((s: CopilotSessionSummary): SessionLifecycle => {
     const override = lifecycleOverrides[s.id];
     if (override) return override;
-    // Default: active unless stale (>30 days)
-    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
-    if (s.lastActivityTime && s.lastActivityTime < Date.now() - thirtyDaysMs) return 'old';
+    const thresholdMs = oldSessionDays * 24 * 60 * 60 * 1000;
+    if (s.lastActivityTime && s.lastActivityTime < Date.now() - thresholdMs) return 'old';
     return 'active';
-  }, [lifecycleOverrides]);
+  }, [lifecycleOverrides, oldSessionDays]);
 
   // Merge, deduplicate, and filter sessions
   const filtered = useMemo(() => {
@@ -420,7 +423,7 @@ const CopilotPanel: React.FC = () => {
       <div className="dir-panel-resize" onMouseDown={handleResizeStart} />
 
       <div className="dir-panel-header">
-        <span>AI Sessions</span>
+        <span>✨ AI Sessions</span>
         <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
           <div className="ai-filter-wrapper" ref={filterDropdownRef}>
             <button
@@ -476,20 +479,23 @@ const CopilotPanel: React.FC = () => {
         <button
           className={`ai-session-tab${lifecycleTab === 'active' ? ' active' : ''}`}
           onClick={() => setLifecycleTab('active')}
+          title="Sessions currently in use or recently active"
         >
           Active{lifecycleCounts.active > 0 ? ` (${lifecycleCounts.active})` : ''}
         </button>
         <button
           className={`ai-session-tab${lifecycleTab === 'completed' ? ' active' : ''}`}
           onClick={() => setLifecycleTab('completed')}
+          title="Sessions you marked as done"
         >
           Completed{lifecycleCounts.completed > 0 ? ` (${lifecycleCounts.completed})` : ''}
         </button>
         <button
           className={`ai-session-tab${lifecycleTab === 'old' ? ' active' : ''}`}
           onClick={() => setLifecycleTab('old')}
+          title={`Sessions inactive for ${oldSessionDays}+ days`}
         >
-          Old{lifecycleCounts.old > 0 ? ` (${lifecycleCounts.old})` : ''}
+          Archived{lifecycleCounts.old > 0 ? ` (${lifecycleCounts.old})` : ''}
         </button>
       </div>
 
@@ -515,8 +521,20 @@ const CopilotPanel: React.FC = () => {
           return (
             <div
               key={`${session.provider}-${session.id}`}
-              className={`ai-session-item${index === selectedIndex ? ' selected' : ''}${active ? ' active' : ''}`}
-              onClick={() => openSession(session)}
+              className={`ai-session-item${index === selectedIndex ? ' selected' : ''}${selectedSessionIds.has(session.id) ? ' multi-selected' : ''}${active ? ' active' : ''}`}
+              onClick={(e) => {
+                setSelectedIndex(index);
+                if (e.ctrlKey || e.metaKey) {
+                  setSelectedSessionIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(session.id)) next.delete(session.id); else next.add(session.id);
+                    return next;
+                  });
+                } else {
+                  setSelectedSessionIds(new Set([session.id]));
+                }
+              }}
+              onDoubleClick={() => openSession(session)}
               onMouseEnter={() => setSelectedIndex(index)}
               onContextMenu={(e) => handleContextMenu(e, session)}
               title={session.cwd || session.id}
@@ -627,32 +645,67 @@ const CopilotPanel: React.FC = () => {
       {promptsPortal}
 
       {ctxMenu && (
-        <div ref={ctxRef} className="context-menu" style={{ left: ctxMenu.x, top: ctxMenu.y, zIndex: 1000 }}>
+        <div ref={(el) => {
+          (ctxRef as any).current = el;
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            if (rect.bottom > window.innerHeight - 4) {
+              el.style.top = `${Math.max(4, ctxMenu.y - rect.height)}px`;
+            }
+            if (rect.right > window.innerWidth - 4) {
+              el.style.left = `${Math.max(4, ctxMenu.x - rect.width)}px`;
+            }
+          }
+        }} className="context-menu" style={{ left: ctxMenu.x, top: ctxMenu.y, zIndex: 1000 }}>
           <button className="context-menu-item" onClick={() => { openSession(ctxMenu.session); setCtxMenu(null); }}>
-            Resume session
+            ▶ Resume session <span className="context-menu-shortcut">double-click</span>
           </button>
           <button className="context-menu-item" onClick={() => handleShowPrompts(ctxMenu.session)}>
-            Show prompts
+            💬 Show prompts
           </button>
           <button className="context-menu-item" onClick={() => handleStartRename(ctxMenu.session)}>
-            Rename
+            ✏️ Rename
           </button>
           {ctxMenu.session.cwd && (
             <>
               <button className="context-menu-item" onClick={() => { navigator.clipboard.writeText(ctxMenu.session.cwd); setCtxMenu(null); }}>
-                Copy path
+                📋 Copy path
               </button>
               <button className="context-menu-item" onClick={() => { (window.terminalAPI as any).openPath(ctxMenu.session.cwd); setCtxMenu(null); }}>
-                Open in explorer
+                📂 Open in explorer
               </button>
             </>
           )}
           <div className="context-menu-separator" />
+          {(() => {
+            const targets = selectedSessionIds.size > 1 ? Array.from(selectedSessionIds) : [ctxMenu.session.id];
+            const currentLifecycle = getSessionLifecycle(ctxMenu.session);
+            return (
+              <>
+                {currentLifecycle !== 'active' && (
+                  <button className="context-menu-item" onClick={() => { targets.forEach((id) => useTerminalStore.getState().setSessionLifecycle(id, 'active')); setCtxMenu(null); setSelectedSessionIds(new Set()); }}>
+                    🔄 Move to Active{targets.length > 1 ? ` (${targets.length})` : ''}
+                  </button>
+                )}
+                {currentLifecycle !== 'completed' && (
+                  <button className="context-menu-item" onClick={() => { targets.forEach((id) => useTerminalStore.getState().setSessionLifecycle(id, 'completed')); setCtxMenu(null); setSelectedSessionIds(new Set()); }}>
+                    ✅ Mark Completed{targets.length > 1 ? ` (${targets.length})` : ''}
+                  </button>
+                )}
+                {currentLifecycle !== 'old' && (
+                  <button className="context-menu-item" onClick={() => { targets.forEach((id) => useTerminalStore.getState().setSessionLifecycle(id, 'old')); setCtxMenu(null); setSelectedSessionIds(new Set()); }}>
+                    🕐 Archive{targets.length > 1 ? ` (${targets.length})` : ''}
+                  </button>
+                )}
+              </>
+            );
+          })()}
+          <div className="context-menu-separator" />
           <button className="context-menu-item" onClick={() => { navigator.clipboard.writeText(ctxMenu.session.id); setCtxMenu(null); }}>
-            Copy session ID
+            🔗 Copy session ID
           </button>
           <button className="context-menu-item danger" onClick={() => handleRemoveSession(ctxMenu.session)}>
-            Remove from list
+            🗑️ Remove from list
           </button>
         </div>
       )}
