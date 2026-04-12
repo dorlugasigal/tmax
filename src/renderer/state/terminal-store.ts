@@ -1653,16 +1653,21 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   },
 
   zoomIn: () => {
-    set((state) => ({ fontSize: Math.min(state.fontSize + 1, 32) }));
+    const newSize = Math.min(get().fontSize + 1, 32);
+    set({ fontSize: newSize });
+    get().updateConfig({ terminal: { ...get().config!.terminal, fontSize: newSize } });
   },
 
   zoomOut: () => {
-    set((state) => ({ fontSize: Math.max(state.fontSize - 1, 8) }));
+    const newSize = Math.max(get().fontSize - 1, 8);
+    set({ fontSize: newSize });
+    get().updateConfig({ terminal: { ...get().config!.terminal, fontSize: newSize } });
   },
 
   zoomReset: () => {
-    const { config } = get();
-    set({ fontSize: config?.terminal?.fontSize ?? 14 });
+    const defaultSize = 14;
+    set({ fontSize: defaultSize });
+    get().updateConfig({ terminal: { ...get().config!.terminal, fontSize: defaultSize } });
   },
 
   saveNamedLayout: async (name: string) => {
