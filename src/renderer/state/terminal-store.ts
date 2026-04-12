@@ -14,7 +14,7 @@ import type {
 } from './types';
 import type { CopilotSessionSummary } from '../../shared/copilot-types';
 import type { DiffMode } from '../../shared/diff-types';
-import { getAllTerminals } from '../terminal-registry';
+import { getAllTerminals, disposeTerminal } from '../terminal-registry';
 
 // Session IDs must be alphanumeric/dash/dot/underscore only (prevent shell injection)
 const SAFE_SESSION_ID = /^[a-zA-Z0-9._-]+$/;
@@ -720,7 +720,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     if (!profile) return;
 
     const id = uuidv4();
-    const cwd = profile.cwd || (config as any).defaultCwd || (navigator.platform.startsWith('Win') ? 'C:\\Users' : process.env.HOME || '/');
+    const cwd = profile.cwd || (config as any).defaultCwd || (navigator.platform.startsWith('Win') ? 'C:\\Users' : window.platformInfo?.homeDir || '/');
     const { pid } = await window.terminalAPI.createPty({
       id,
       shellPath: profile.path,
@@ -859,6 +859,9 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       focusedTerminalId: newFocus,
       preGridRoot: newPreGridRoot,
     });
+    // Ensure the xterm instance and PTY subscriptions are cleaned up even if
+    // the TerminalPanel was already stashed (unmounted by a layout restructure).
+    disposeTerminal(id);
     window.terminalAPI.diagLog('renderer:close-terminal', {
       id,
       killMs: Math.round(t1 - t0),
@@ -1935,7 +1938,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
         // Sanitize cwd: skip executable paths that were incorrectly saved as cwd
         let cwd = info.cwd || '';
         if (/\.(exe|cmd|bat|com|ps1|sh|msi|dll)$/i.test(cwd) || !cwd) {
-          cwd = profile.cwd || (navigator.platform.startsWith('Win') ? 'C:\\Users' : process.env.HOME || '/');
+          cwd = profile.cwd || (navigator.platform.startsWith('Win') ? 'C:\\Users' : window.platformInfo?.homeDir || '/');
         }
         try {
           const { pid } = await window.terminalAPI.createPty({

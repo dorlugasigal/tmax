@@ -4,7 +4,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { SearchAddon } from '@xterm/addon-search';
 import { useTerminalStore } from '../state/terminal-store';
-import { registerTerminal, unregisterTerminal } from '../terminal-registry';
+import { registerTerminal, unregisterTerminal, getTerminalEntry, addTerminalCleanup, stashTerminal, unstashTerminal, disposeTerminal } from '../terminal-registry';
 import { isMac } from '../utils/platform';
 import type { AppConfig } from '../state/types';
 import '@xterm/xterm/css/xterm.css';
@@ -187,6 +187,91 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
   useEffect(() => {
     if (!containerRef.current) return;
 
+    // ── REATTACH PATH ──────────────────────────────────────────────
+    // If this terminal was stashed (layout restructured, not closed),
+    // reattach the existing xterm DOM instead of creating a new instance.
+    const stashedEntry = getTerminalEntry(terminalId);
+    if (stashedEntry?.stashed) {
+      unstashTerminal(terminalId, containerRef.current);
+      const { terminal: term, fitAddon, searchAddon } = stashedEntry;
+      terminalRef.current = term;
+      fitAddonRef.current = fitAddon;
+      searchAddonRef.current = searchAddon;
+
+      // Re-fit after DOM settles
+      requestAnimationFrame(() => {
+        try {
+          fitAddon.fit();
+          const { cols, rows } = term;
+          window.terminalAPI.resizePty(terminalId, cols, rows);
+        } catch { /* container may not be sized yet */ }
+      });
+
+      // ResizeObserver for the new container
+      let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+      const resizeObserver = new ResizeObserver(() => {
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          try {
+            fitAddon.fit();
+            const { cols, rows } = term;
+            window.terminalAPI.resizePty(terminalId, cols, rows);
+          } catch { /* ignore */ }
+        }, 100);
+      });
+      resizeObserver.observe(containerRef.current);
+
+      // Container-specific event listeners
+      const handleWheel = (e: WheelEvent) => {
+        if (e.ctrlKey) {
+          e.preventDefault();
+          const store = useTerminalStore.getState();
+          if (e.deltaY < 0) store.zoomIn(); else store.zoomOut();
+        }
+      };
+      containerRef.current.addEventListener('wheel', handleWheel, { passive: false });
+
+      const handleContextMenu = (e: MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        if (term.hasSelection()) {
+          window.terminalAPI.clipboardWrite(term.getSelection());
+          term.clearSelection();
+        } else {
+          if (window.terminalAPI.clipboardHasImage()) {
+            window.terminalAPI.clipboardSaveImage().then((filePath) => {
+              window.terminalAPI.writePty(terminalId, filePath);
+            });
+          } else {
+            const text = window.terminalAPI.clipboardRead();
+            if (text) window.terminalAPI.writePty(terminalId, text);
+          }
+        }
+      };
+      containerRef.current.addEventListener('contextmenu', handleContextMenu, true);
+
+      const containerEl = containerRef.current;
+
+      return () => {
+        resizeObserver.disconnect();
+        if (resizeTimer) clearTimeout(resizeTimer);
+        containerEl.removeEventListener('wheel', handleWheel);
+        containerEl.removeEventListener('contextmenu', handleContextMenu, true);
+
+        if (useTerminalStore.getState().terminals.has(terminalId)) {
+          // Layout restructure — stash again for next reattach
+          stashTerminal(terminalId);
+        } else {
+          // Terminal actually closed — full dispose handled by closeTerminal
+          terminalRef.current = null;
+          fitAddonRef.current = null;
+          searchAddonRef.current = null;
+        }
+      };
+    }
+
+    // ── FRESH CREATION PATH ────────────────────────────────────────
     const themeConfig = config?.theme;
     const termConfig = config?.terminal;
 
@@ -228,7 +313,7 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
     term.loadAddon(searchAddon);
 
     searchAddonRef.current = searchAddon;
-    registerTerminal(terminalId, term, searchAddon);
+    registerTerminal(terminalId, term, searchAddon, fitAddon);
 
     searchAddon.onDidChangeResults((e) => {
       if (e) {
@@ -585,24 +670,35 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
 
     const containerEl = containerRef.current;
 
-    return () => {
-      resizeObserver.disconnect();
-      dataDisposable.dispose();
-      unsubscribePtyData();
-      unsubscribePtyExit();
-      wslPromptCleanupRef.current?.();
-      if (textareaEl) {
+    // Store terminal-level cleanups in the registry so they survive
+    // across React unmount/remount cycles and run on actual close.
+    addTerminalCleanup(terminalId, () => dataDisposable.dispose());
+    addTerminalCleanup(terminalId, unsubscribePtyData);
+    addTerminalCleanup(terminalId, unsubscribePtyExit);
+    addTerminalCleanup(terminalId, () => wslPromptCleanupRef.current?.());
+    addTerminalCleanup(terminalId, () => titleDisposable.dispose());
+    if (textareaEl) {
+      addTerminalCleanup(terminalId, () => {
         textareaEl.removeEventListener('focus', handleFocus);
         textareaEl.removeEventListener('blur', handleBlur);
-      }
+      });
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+      if (resizeTimer) clearTimeout(resizeTimer);
       containerEl.removeEventListener('wheel', handleWheel);
       containerEl.removeEventListener('contextmenu', handleContextMenu, true);
-      titleDisposable.dispose();
-      unregisterTerminal(terminalId);
-      term.dispose();
-      terminalRef.current = null;
-      fitAddonRef.current = null;
-      searchAddonRef.current = null;
+
+      if (useTerminalStore.getState().terminals.has(terminalId)) {
+        // Layout restructure — stash xterm for reattachment on remount
+        stashTerminal(terminalId);
+      } else {
+        // Terminal actually closed — full dispose handled by closeTerminal
+        terminalRef.current = null;
+        fitAddonRef.current = null;
+        searchAddonRef.current = null;
+      }
     };
   }, [terminalId, handleFocus]); // eslint-disable-line react-hooks/exhaustive-deps
 
