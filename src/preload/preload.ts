@@ -52,6 +52,9 @@ export interface TerminalAPI {
   // ── File explorer ────────────────────────────────────────────────
   fileList(dirPath: string, wslDistro?: string): Promise<{ name: string; isDirectory: boolean; path: string }[]>;
   fileRead(filePath: string, wslDistro?: string): Promise<string | null>;
+  // ── Pipeline tracker ──────────────────────────────────────────
+  onPipelineStatusUpdate(cb: (paneId: string, status: unknown) => void): () => void;
+  dismissPipeline(paneId: string): void;
 }
 
 const terminalAPI: TerminalAPI = {
@@ -337,6 +340,21 @@ const terminalAPI: TerminalAPI = {
 
   fileRead(filePath: string, wslDistro?: string) {
     return ipcRenderer.invoke(IPC.FILE_READ, filePath, wslDistro);
+  },
+
+  // ── Pipeline tracker ──────────────────────────────────────────
+  onPipelineStatusUpdate(cb: (paneId: string, status: unknown) => void): () => void {
+    const listener = (_event: Electron.IpcRendererEvent, paneId: string, status: unknown) => {
+      cb(paneId, status);
+    };
+    ipcRenderer.on(IPC.PIPELINE_STATUS_UPDATE, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC.PIPELINE_STATUS_UPDATE, listener);
+    };
+  },
+
+  dismissPipeline(paneId: string) {
+    ipcRenderer.send(IPC.PIPELINE_DISMISS, paneId);
   },
 
 };
