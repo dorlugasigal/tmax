@@ -14,15 +14,25 @@ const config: ForgeConfig = {
       // Copy node-pty native module into packaged app
       const path = require('path');
       const fs = require('fs-extra');
-      const appDir = path.join(options.outputPaths[0], 'resources', 'app');
+      const outputPath = options.outputPaths[0];
+      // macOS: Contents/Resources/app, Windows/Linux: resources/app
+      const isMac = outputPath.endsWith('.app') || outputPath.includes('.app/');
+      const appDir = isMac
+        ? path.join(outputPath, 'Contents', 'Resources', 'app')
+        : path.join(outputPath, 'resources', 'app');
+      // Fallback: try .vite path structure
+      const appDirVite = isMac
+        ? path.join(outputPath, 'Contents', 'Resources', 'app.vite')
+        : null;
+      const targetDir = fs.existsSync(appDir) ? appDir : (appDirVite && fs.existsSync(appDirVite) ? appDirVite : appDir);
       const src = path.join(__dirname, 'node_modules', 'node-pty');
-      const dest = path.join(appDir, 'node_modules', 'node-pty');
+      const dest = path.join(targetDir, 'node_modules', 'node-pty');
       await fs.copy(src, dest);
       // Also copy node-addon-api (node-pty dependency)
       const napiSrc = path.join(__dirname, 'node_modules', 'node-addon-api');
-      const napiDest = path.join(appDir, 'node_modules', 'node-addon-api');
+      const napiDest = path.join(targetDir, 'node_modules', 'node-addon-api');
       if (fs.existsSync(napiSrc)) await fs.copy(napiSrc, napiDest);
-      console.log('Copied node-pty to packaged app');
+      console.log(`Copied node-pty to packaged app: ${targetDir}`);
     },
   },
   packagerConfig: {
