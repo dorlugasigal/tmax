@@ -11,18 +11,25 @@ const config: ForgeConfig = {
   outDir: process.env.FORGE_OUT_DIR || 'out',
   hooks: {
     postPackage: async (_config, options) => {
-      // Copy node-pty native module into packaged app
       const path = require('path');
       const fs = require('fs-extra');
-      const appDir = path.join(options.outputPaths[0], 'resources', 'app');
+      const outDir = options.outputPaths[0];
+
+      // On macOS the app bundle lives at <name>.app/Contents/Resources/app,
+      // on other platforms it's just resources/app.
+      const macApp = fs.readdirSync(outDir).find((f: string) => f.endsWith('.app'));
+      const appDir = macApp
+        ? path.join(outDir, macApp, 'Contents', 'Resources', 'app')
+        : path.join(outDir, 'resources', 'app');
+
       const src = path.join(__dirname, 'node_modules', 'node-pty');
       const dest = path.join(appDir, 'node_modules', 'node-pty');
       await fs.copy(src, dest);
-      // Also copy node-addon-api (node-pty dependency)
+
       const napiSrc = path.join(__dirname, 'node_modules', 'node-addon-api');
       const napiDest = path.join(appDir, 'node_modules', 'node-addon-api');
       if (fs.existsSync(napiSrc)) await fs.copy(napiSrc, napiDest);
-      console.log('Copied node-pty to packaged app');
+      console.log(`Copied node-pty native module to ${appDir}`);
     },
   },
   packagerConfig: {
