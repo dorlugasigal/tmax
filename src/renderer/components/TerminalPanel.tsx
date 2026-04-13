@@ -301,7 +301,7 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
       // Format: CSI Vk;Sc;Uc;Kd;Cs;Rc _ (VK_RETURN=13, ScanCode=28)
       if (event.key === 'Enter' && (event.ctrlKey || event.shiftKey) && !event.altKey) {
         const cs = (event.ctrlKey ? 8 : 0) | (event.shiftKey ? 16 : 0);
-        const uc = event.ctrlKey ? 10 : 13;
+        const uc = event.shiftKey ? 10 : 13;
         window.terminalAPI.writePty(terminalId, `\x1b[13;28;${uc};1;${cs};1_`);
         return false;
       }
