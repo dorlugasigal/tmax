@@ -56,8 +56,6 @@ const App: React.FC = () => {
         await useTerminalStore.getState().loadCopilotSessions();
         await useTerminalStore.getState().loadClaudeCodeSessions();
         if (cancelled) return;
-        // Check for stale active sessions (>30 days) on startup
-        useTerminalStore.getState().checkStaleActiveSessions();
         if (useTerminalStore.getState().terminals.size === 0) {
           const restored = await useTerminalStore.getState().restoreSession();
           if (cancelled) return;
@@ -65,6 +63,9 @@ const App: React.FC = () => {
             await createTerminal();
           }
         }
+        // Check for stale active sessions (>30 days) — must run after restoreSession
+        // so sessionLifecycleOverrides are loaded before saveSession() is triggered
+        useTerminalStore.getState().checkStaleActiveSessions();
       } catch (err) {
         console.error('Init failed:', err);
       }
