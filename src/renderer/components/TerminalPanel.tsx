@@ -207,6 +207,21 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
         } catch { /* container may not be sized yet */ }
       });
 
+      // Re-subscribe to PTY IPC events (previous listeners were removed on unmount)
+      const unsubPtyData = window.terminalAPI.onPtyData((id: string, data: string) => {
+        if (id === terminalId) term.write(data);
+      });
+      const unsubPtyExit = window.terminalAPI.onPtyExit((id: string, exitCode: number | undefined) => {
+        if (id === terminalId) {
+          window.terminalAPI.diagLog('renderer:pty-exit-received', { terminalId, exitCode });
+          setProcessStatus(exitCode && exitCode !== 0 ? 'exited-error' : 'exited-ok');
+          term.write('\r\n\x1b[90m[Process exited]\x1b[0m\r\n');
+          setTimeout(() => {
+            useTerminalStore.getState().closeTerminal(terminalId);
+          }, 500);
+        }
+      });
+
       // ResizeObserver for the new container
       let resizeTimer: ReturnType<typeof setTimeout> | null = null;
       const resizeObserver = new ResizeObserver(() => {
@@ -254,6 +269,8 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
       const containerEl = containerRef.current;
 
       return () => {
+        unsubPtyData();
+        unsubPtyExit();
         resizeObserver.disconnect();
         if (resizeTimer) clearTimeout(resizeTimer);
         containerEl.removeEventListener('wheel', handleWheel);
@@ -703,8 +720,6 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
     // Store terminal-level cleanups in the registry so they survive
     // across React unmount/remount cycles and run on actual close.
     addTerminalCleanup(terminalId, () => dataDisposable.dispose());
-    addTerminalCleanup(terminalId, unsubscribePtyData);
-    addTerminalCleanup(terminalId, unsubscribePtyExit);
     addTerminalCleanup(terminalId, () => wslPromptCleanupRef.current?.());
     addTerminalCleanup(terminalId, () => titleDisposable.dispose());
     if (textareaEl) {
@@ -715,6 +730,10 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
     }
 
     return () => {
+      // Always unsubscribe PTY IPC listeners on unmount to prevent
+      // listener accumulation across HMR / layout-induced remounts.
+      unsubscribePtyData();
+      unsubscribePtyExit();
       resizeObserver.disconnect();
       if (resizeTimer) clearTimeout(resizeTimer);
       containerEl.removeEventListener('wheel', handleWheel);
