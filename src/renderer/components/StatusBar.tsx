@@ -212,8 +212,12 @@ const StatusBar: React.FC = () => {
           <button
             className="status-help-btn"
             onClick={() => {
-              const body = encodeURIComponent(`**Version:** ${appVersion}\n**Platform:** ${navigator.platform}\n\n**Description:**\n\n\n**Steps to reproduce:**\n1. \n\n**Expected behavior:**\n\n**Actual behavior:**\n\n---\n_Note: If you're signed into GitHub with an Enterprise Managed account, you may need to sign in with your personal GitHub account to submit this issue._`);
-              window.open(`https://github.com/InbarR/tmax/issues/new?body=${body}`, '_blank');
+              const issueBody = `**Version:** ${appVersion}\n**Platform:** ${navigator.platform}\n\n**Description:**\n\n\n**Steps to reproduce:**\n1. \n\n**Expected behavior:**\n\n**Actual behavior:**\n`;
+              const url = `https://github.com/InbarR/tmax/issues/new?body=${encodeURIComponent(issueBody)}`;
+              // Copy issue template to clipboard in case the user needs to paste it manually
+              window.terminalAPI.clipboardWrite(issueBody);
+              window.open(url, '_blank');
+              useTerminalStore.getState().addToast('Issue template copied to clipboard. If GitHub blocks you (EMU account), open in a private/incognito window.');
             }}
             title="Report an issue (opens GitHub)"
           >
