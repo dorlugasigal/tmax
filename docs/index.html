@@ -412,7 +412,7 @@ function detectPlatform() {
     const gl = canvas.getContext('webgl');
     const renderer = gl ? gl.getParameter(gl.RENDERER) : '';
     const isArm = /apple m|apple gpu/i.test(renderer) || navigator.userAgent.includes('ARM');
-    return { os: 'macOS', arch: isArm ? 'arm64' : 'x64', icon: '&#63743;' };
+    return { os: 'macOS', arch: isArm ? 'arm64' : 'x64', icon: '🍎' };
   }
   if (platform.includes('linux') || ua.includes('linux')) {
     return { os: 'Linux', arch: 'x64', icon: '&#128039;' };
@@ -427,8 +427,8 @@ function detectPlatform() {
 const ALL_DOWNLOADS = [
   { os: 'Windows', arch: 'x64', label: 'Windows (x64)', icon: '&#128187;', pattern: /Setup\.exe$|win32-x64.*\.zip$/ },
   { os: 'Windows', arch: 'arm64', label: 'Windows (ARM)', icon: '&#128187;', pattern: /win32-arm64.*\.zip$/ },
-  { os: 'macOS', arch: 'arm64', label: 'macOS (Apple Silicon)', icon: '&#63743;', pattern: /arm64\.dmg$/ },
-  { os: 'macOS', arch: 'x64', label: 'macOS (Intel)', icon: '&#63743;', pattern: /(?<!arm64)\.dmg$|darwin-x64.*\.zip$/ },
+  { os: 'macOS', arch: 'arm64', label: 'macOS (Apple Silicon)', icon: '🍎', pattern: /arm64\.dmg$/ },
+  { os: 'macOS', arch: 'x64', label: 'macOS (Intel)', icon: '🍎', pattern: /(?<!arm64)\.dmg$|darwin-x64.*\.zip$/ },
   { os: 'Linux', arch: 'x64', label: 'Linux (.deb)', icon: '&#128039;', pattern: /\.deb$/ },
   { os: 'Linux', arch: 'x64-rpm', label: 'Linux (.rpm)', icon: '&#128039;', pattern: /\.rpm$/ },
 ];
