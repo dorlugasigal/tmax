@@ -368,13 +368,13 @@
     <div class="feature-card">
       <div class="icon">&#9888;</div>
       <h3>Report an Issue</h3>
-      <p>Found a bug or have a suggestion? Let us know.</p>
+      <p>Found a bug or have a suggestion? Let us know.<br><small style="color:var(--yellow)">Use your personal GitHub account, not your org/EMU account.</small></p>
       <a class="community-btn" href="https://github.com/InbarR/tmax/issues/new" target="_blank">Open Issue</a>
     </div>
     <div class="feature-card">
       <div class="icon">&#128736;</div>
       <h3>Contribute</h3>
-      <p>tmax is open source. PRs are welcome!</p>
+      <p>tmax is open source. PRs are welcome!<br><small style="color:var(--yellow)">Use your personal GitHub account, not your org/EMU account.</small></p>
       <div style="font-size:13px;color:var(--fg2);margin-top:8px;text-align:left;">
         1. Fork the repo<br>
         2. Create a feature branch<br>
@@ -395,6 +395,8 @@
 <div class="footer">
   <p>Open source &middot; <a href="https://github.com/InbarR/tmax">GitHub</a> &middot; MIT License</p>
   <p style="margin-top:8px;">Built with Electron, React, TypeScript, xterm.js</p>
+  <p style="margin-top:8px;"><a href="mailto:inbar.rotem@gmail.com">&#9993; Contact</a></p>
+  <p style="margin-top:12px;">&copy; Inbar Rotem 314</p>
 </div>
 
 <script>
@@ -426,11 +428,11 @@ function detectPlatform() {
 
 const ALL_DOWNLOADS = [
   { os: 'Windows', arch: 'x64', label: 'Windows (x64)', icon: '&#128187;', pattern: /Setup\.exe$|win32-x64.*\.zip$/ },
-  { os: 'Windows', arch: 'arm64', label: 'Windows (ARM)', icon: '&#128187;', pattern: /win32-arm64.*\.zip$/ },
+  { os: 'Windows', arch: 'arm64', label: 'Windows (ARM)', icon: '&#128170;', pattern: /win32-arm64.*\.zip$/ },
   { os: 'macOS', arch: 'arm64', label: 'macOS (Apple Silicon)', icon: '🍎', pattern: /arm64\.dmg$/ },
-  { os: 'macOS', arch: 'x64', label: 'macOS (Intel)', icon: '🍎', pattern: /(?<!arm64)\.dmg$|darwin-x64.*\.zip$/ },
-  { os: 'Linux', arch: 'x64', label: 'Linux (.deb)', icon: '&#128039;', pattern: /\.deb$/ },
-  { os: 'Linux', arch: 'x64-rpm', label: 'Linux (.rpm)', icon: '&#128039;', pattern: /\.rpm$/ },
+  { os: 'macOS', arch: 'x64', label: 'macOS (Intel)', icon: '&#9881;', pattern: /(?<!arm64)\.dmg$|darwin-x64.*\.zip$/ },
+  { os: 'Linux', arch: 'x64', label: 'Linux (.deb)', icon: '&#128230;', pattern: /\.deb$/ },
+  { os: 'Linux', arch: 'x64-rpm', label: 'Linux (.rpm)', icon: '&#9881;', pattern: /\.rpm$/ },
 ];
 
 async function loadRelease() {
