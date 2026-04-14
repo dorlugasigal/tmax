@@ -430,9 +430,9 @@ const ALL_DOWNLOADS = [
   { os: 'Windows', arch: 'x64', label: 'Windows (x64)', icon: '&#128187;', pattern: /Setup\.exe$|win32-x64.*\.zip$/ },
   { os: 'Windows', arch: 'arm64', label: 'Windows (ARM)', icon: '&#128170;', pattern: /win32-arm64.*\.zip$/ },
   { os: 'macOS', arch: 'arm64', label: 'macOS (Apple Silicon)', icon: '🍎', pattern: /arm64\.dmg$/ },
-  { os: 'macOS', arch: 'x64', label: 'macOS (Intel)', icon: '&#9881;', pattern: /(?<!arm64)\.dmg$|darwin-x64.*\.zip$/ },
-  { os: 'Linux', arch: 'x64', label: 'Linux (.deb)', icon: '&#128230;', pattern: /\.deb$/ },
-  { os: 'Linux', arch: 'x64-rpm', label: 'Linux (.rpm)', icon: '&#9881;', pattern: /\.rpm$/ },
+  { os: 'macOS', arch: 'x64', label: 'macOS (Intel)', icon: '🍏', pattern: /(?<!arm64)\.dmg$|darwin-x64.*\.zip$/ },
+  { os: 'Linux', arch: 'x64', label: 'Linux (.deb)', icon: '🐧', pattern: /\.deb$/ },
+  { os: 'Linux', arch: 'x64-rpm', label: 'Linux (.rpm)', icon: '📦', pattern: /\.rpm$/ },
 ];
 
 async function loadRelease() {
