@@ -171,6 +171,31 @@
       font-size: 12px;
     }
 
+    .community {
+      max-width: 900px;
+      margin: 0 auto 60px;
+      padding: 0 20px;
+    }
+    .community h2 { font-size: 32px; text-align: center; margin-bottom: 24px; }
+    .community-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+    }
+    .community-btn {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 8px 20px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 500;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .community-btn:hover { background: rgba(96,165,250,0.1); border-color: var(--blue); text-decoration: none; }
+
     .changelog {
       max-width: 700px;
       margin: 0 auto 60px;
@@ -260,6 +285,10 @@
   </div>
 </div>
 
+<div class="changelog" id="changelog">
+  <div class="changelog-content" id="changelog-content">Loading release notes...</div>
+</div>
+
 <div class="screenshot">
   <img src="https://raw.githubusercontent.com/InbarR/tmax/main/assets/screenshot.png" alt="tmax screenshot">
 </div>
@@ -333,9 +362,34 @@
   <p style="text-align:center;color:var(--fg2);font-size:13px;margin-top:12px;">On macOS, Ctrl is replaced with Cmd (&#8984;). All shortcuts are customizable.</p>
 </div>
 
-<div class="changelog" id="changelog">
-  <h2>Latest Release</h2>
-  <div class="changelog-content" id="changelog-content">Loading...</div>
+<div class="community">
+  <h2>Community</h2>
+  <div class="community-grid">
+    <div class="feature-card">
+      <div class="icon">&#9888;</div>
+      <h3>Report an Issue</h3>
+      <p>Found a bug or have a suggestion? Let us know.</p>
+      <a class="community-btn" href="https://github.com/InbarR/tmax/issues/new" target="_blank">Open Issue</a>
+    </div>
+    <div class="feature-card">
+      <div class="icon">&#128736;</div>
+      <h3>Contribute</h3>
+      <p>tmax is open source. PRs are welcome!</p>
+      <div style="font-size:13px;color:var(--fg2);margin-top:8px;text-align:left;">
+        1. Fork the repo<br>
+        2. Create a feature branch<br>
+        3. Make your changes<br>
+        4. Open a Pull Request
+      </div>
+      <a class="community-btn" href="https://github.com/InbarR/tmax/fork" target="_blank">Fork on GitHub</a>
+    </div>
+    <div class="feature-card">
+      <div class="icon">&#9733;</div>
+      <h3>Star the Repo</h3>
+      <p>If you find tmax useful, give it a star!</p>
+      <a class="community-btn" href="https://github.com/InbarR/tmax" target="_blank">Star on GitHub</a>
+    </div>
+  </div>
 </div>
 
 <div class="footer">
