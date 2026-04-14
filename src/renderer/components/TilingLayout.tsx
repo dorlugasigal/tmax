@@ -28,6 +28,7 @@ const TilingNode: React.FC<TilingNodeProps> = ({ node }) => {
   return (
     <div className={`split-container ${splitNode.direction}`}>
       <div
+        key={splitNode.first.kind === 'leaf' ? splitNode.first.terminalId : splitNode.first.id}
         style={{
           flexBasis: firstBasis,
           flexGrow: 0,
@@ -45,6 +46,7 @@ const TilingNode: React.FC<TilingNodeProps> = ({ node }) => {
         direction={splitNode.direction}
       />
       <div
+        key={splitNode.second.kind === 'leaf' ? splitNode.second.terminalId : splitNode.second.id}
         style={{
           flexBasis: secondBasis,
           flexGrow: 0,

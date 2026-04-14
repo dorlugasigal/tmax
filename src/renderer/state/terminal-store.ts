@@ -14,7 +14,7 @@ import type {
 } from './types';
 import type { CopilotSessionSummary } from '../../shared/copilot-types';
 import type { DiffMode } from '../../shared/diff-types';
-import { getAllTerminals, getAllTerminalEntries, setWebglAddon, disposeTerminal } from '../terminal-registry';
+import { getAllTerminals, getAllTerminalEntries, setWebglAddon, disposeTerminal, getTerminalEntry } from '../terminal-registry';
 
 // ── Theme presets (Catppuccin Mocha / Latte) ─────────────────────────
 export const DARK_THEME_PRESET: Record<string, string> = {
@@ -920,10 +920,37 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     // Ensure the xterm instance and PTY subscriptions are cleaned up even if
     // the TerminalPanel was already stashed (unmounted by a layout restructure).
     disposeTerminal(id);
+
+    // After React processes the layout change (stash → unstash cycle for the
+    // surviving terminal), force-focus the new terminal.  The tree collapse
+    // causes the surviving TerminalPanel to unmount/remount, and browsers can
+    // lose track of focus during DOM reparenting.  A delayed retry ensures
+    // focus lands on the xterm textarea even if the initial programmatic
+    // focus in the reattach effect doesn't stick.
+    if (newFocus) {
+      const forceFocus = () => {
+        const entry = getTerminalEntry(newFocus!);
+        if (entry?.terminal && !entry.stashed && get().focusedTerminalId === newFocus) {
+          entry.terminal.focus();
+          const textarea = entry.terminal.element?.querySelector('textarea');
+          if (textarea && document.activeElement !== textarea) {
+            (textarea as HTMLElement).focus();
+          }
+        }
+      };
+      // After a tree collapse the surviving TerminalPanel goes through
+      // stash → unstash (React unmount/remount).  Browsers can lose focus
+      // during DOM reparenting.  Retry focus at several delays to cover
+      // various timing windows: double-rAF for fast cases, setTimeout for
+      // cases where React effects haven't run yet during the rAF window.
+      requestAnimationFrame(() => requestAnimationFrame(forceFocus));
+      setTimeout(forceFocus, 50);
+      setTimeout(forceFocus, 150);
+      setTimeout(forceFocus, 300);
+    }
+
     window.terminalAPI.diagLog('renderer:close-terminal', {
       id,
-      killMs: Math.round(t1 - t0),
-      totalMs: Math.round(performance.now() - t0),
       remaining: newTerminals.size,
     });
   },

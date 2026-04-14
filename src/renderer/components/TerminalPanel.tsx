@@ -5,7 +5,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import { SearchAddon } from '@xterm/addon-search';
 import { useTerminalStore } from '../state/terminal-store';
 import { usePipelineStore } from '../state/pipeline-store';
-import { registerTerminal, unregisterTerminal, getTerminalEntry, addTerminalCleanup, stashTerminal, unstashTerminal, disposeTerminal, setWebglAddon } from '../terminal-registry';
+import { registerTerminal, unregisterTerminal, getTerminalEntry, addTerminalCleanup, stashTerminal, unstashTerminal, disposeTerminal, setWebglAddon, setTextareaHandlers, removeTextareaHandlers } from '../terminal-registry';
 import { isMac } from '../utils/platform';
 import type { AppConfig } from '../state/types';
 import { PipelineFooter } from './PipelineFooter';
@@ -167,22 +167,16 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
     useTerminalStore.getState().setFocus(terminalId);
     diagRef.current.focusEventCount++;
     diagRef.current.lastFocusTime = Date.now();
-    window.terminalAPI.diagLog('renderer:focus-gained', { terminalId });
-    // Always re-focus xterm textarea — the store won't trigger a re-focus
-    // if this panel is already the focused one (isFocused won't change)
     try {
       terminalRef.current?.focus();
+      const textarea = containerRef.current?.querySelector('textarea');
+      if (textarea && document.activeElement !== textarea) {
+        (textarea as HTMLElement).focus();
+      }
     } catch { /* terminal may be disposed */ }
-    // Ensure DEC focus reporting reaches the PTY even if xterm.js lost
-    // its internal focus-reporting state (e.g. after a pane split/resize).
-    // Without this, Copilot CLI stays in isFocused=false and drops input.
-    // Only inject when actually switching between two terminals — not on
-    // first focus (prevFocused=null) to avoid stray sequences.
     if (prevFocused && prevFocused !== terminalId) {
       window.terminalAPI.writePty(prevFocused, '\x1b[O');
-      window.terminalAPI.diagLog('renderer:focus-inject-out', { terminalId: prevFocused });
       window.terminalAPI.writePty(terminalId, '\x1b[I');
-      window.terminalAPI.diagLog('renderer:focus-inject-in', { terminalId });
     }
   }, [terminalId]);
 
@@ -200,14 +194,50 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
       fitAddonRef.current = fitAddon;
       searchAddonRef.current = searchAddon;
 
-      // Re-fit after DOM settles
-      requestAnimationFrame(() => {
+      // Re-add textarea focus/blur handlers with fresh refs.
+      // The old handlers (from the previous mount) had stale containerRef values;
+      // removing them in the stash cleanup prevents focus fights.
+      const textareaEl = containerRef.current.querySelector('textarea');
+      if (textareaEl) {
+        const handleBlur = () => {
+          requestAnimationFrame(() => {
+            if (useTerminalStore.getState().focusedTerminalId !== terminalId) return;
+            const active = document.activeElement;
+            const somethingElseTookFocus = active && active !== document.body && !containerRef.current?.contains(active);
+            if (!somethingElseTookFocus) {
+              try { terminalRef.current?.focus(); } catch { /* disposed */ }
+            }
+          });
+        };
+        setTextareaHandlers(terminalId, { textarea: textareaEl as HTMLTextAreaElement, focus: handleFocus, blur: handleBlur });
+      }
+
+      // Re-fit after DOM settles and auto-focus if this is the focused terminal.
+      const focusTimers: ReturnType<typeof setTimeout>[] = [];
+      const focusIfNeeded = () => {
         try {
-          fitAddon.fit();
-          const { cols, rows } = term;
-          window.terminalAPI.resizePty(terminalId, cols, rows);
-        } catch { /* container may not be sized yet */ }
+          const shouldFocus = useTerminalStore.getState().focusedTerminalId === terminalId;
+          if (shouldFocus) {
+            term.focus();
+            const ta = containerRef.current?.querySelector('textarea');
+            if (ta && document.activeElement !== ta) {
+              (ta as HTMLElement).focus();
+            }
+          }
+        } catch { /* terminal may be disposed */ }
+      };
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          try {
+            fitAddon.fit();
+            const { cols, rows } = term;
+            window.terminalAPI.resizePty(terminalId, cols, rows);
+          } catch { /* container may not be sized yet */ }
+          focusIfNeeded();
+        });
       });
+      focusTimers.push(setTimeout(focusIfNeeded, 80));
+      focusTimers.push(setTimeout(focusIfNeeded, 200));
 
       // Re-create WebGL renderer (disposed during stash to avoid stale GL context)
       if (!term.options.allowTransparency) {
@@ -287,12 +317,18 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
       const containerEl = containerRef.current;
 
       return () => {
+        // Cancel pending focus timers to prevent stale focus calls
+        for (const t of focusTimers) clearTimeout(t);
         unsubPtyData();
         unsubPtyExit();
         resizeObserver.disconnect();
         if (resizeTimer) clearTimeout(resizeTimer);
         containerEl.removeEventListener('wheel', handleWheel);
         containerEl.removeEventListener('contextmenu', handleContextMenu, true);
+
+        // Remove textarea handlers BEFORE stashing to prevent stale listeners
+        // from firing focus events with dead refs after unmount
+        removeTextareaHandlers(terminalId);
 
         if (useTerminalStore.getState().terminals.has(terminalId)) {
           // Layout restructure — stash again for next reattach
@@ -660,13 +696,10 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
       }
     });
 
-    // Focus tracking via textarea focus/blur
+    // Focus tracking via textarea focus/blur — managed through the registry
+    // so handlers are properly removed on stash and re-added on unstash.
     const textareaEl = containerRef.current.querySelector('textarea');
     const handleBlur = () => {
-      window.terminalAPI.diagLog('renderer:focus-lost', { terminalId });
-      // Re-focus if this terminal is still the active one AND nothing else explicitly took
-      // focus. Check document.activeElement instead of overlay visibility flags — a panel
-      // being visible (e.g. Copilot sidebar) doesn't mean it holds keyboard focus.
       requestAnimationFrame(() => {
         if (useTerminalStore.getState().focusedTerminalId !== terminalId) return;
         const active = document.activeElement;
@@ -677,8 +710,7 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
       });
     };
     if (textareaEl) {
-      textareaEl.addEventListener('focus', handleFocus);
-      textareaEl.addEventListener('blur', handleBlur);
+      setTextareaHandlers(terminalId, { textarea: textareaEl as HTMLTextAreaElement, focus: handleFocus, blur: handleBlur });
     }
 
     // ResizeObserver for fit — debounced to avoid rapid resize races
@@ -740,12 +772,6 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
     addTerminalCleanup(terminalId, () => dataDisposable.dispose());
     addTerminalCleanup(terminalId, () => wslPromptCleanupRef.current?.());
     addTerminalCleanup(terminalId, () => titleDisposable.dispose());
-    if (textareaEl) {
-      addTerminalCleanup(terminalId, () => {
-        textareaEl.removeEventListener('focus', handleFocus);
-        textareaEl.removeEventListener('blur', handleBlur);
-      });
-    }
 
     return () => {
       // Always unsubscribe PTY IPC listeners on unmount to prevent
@@ -756,6 +782,9 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
       if (resizeTimer) clearTimeout(resizeTimer);
       containerEl.removeEventListener('wheel', handleWheel);
       containerEl.removeEventListener('contextmenu', handleContextMenu, true);
+
+      // Remove textarea handlers BEFORE stashing to prevent stale listeners
+      removeTextareaHandlers(terminalId);
 
       if (useTerminalStore.getState().terminals.has(terminalId)) {
         // Layout restructure — stash xterm for reattachment on remount
@@ -915,13 +944,11 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
       data-terminal-id={terminalId}
       onMouseDownCapture={(e) => {
         if (!isFocused) {
-          // This click is a pane-switch click, not a TUI interaction.
-          // Stop it before xterm sees it so it isn't forwarded to the PTY as a
-          // mouse event (which causes mouse-reporting apps like Claude CLI to
-          // shift their internal focus away from the input field).
           e.stopPropagation();
-          window.terminalAPI.diagLog('renderer:pane-switch-click-suppressed', { terminalId });
         }
+        handleFocus();
+      }}
+      onClick={() => {
         handleFocus();
       }}
     >

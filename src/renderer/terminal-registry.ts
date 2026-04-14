@@ -12,6 +12,12 @@ import type { SearchAddon } from '@xterm/addon-search';
 import type { FitAddon } from '@xterm/addon-fit';
 import type { WebglAddon } from '@xterm/addon-webgl';
 
+interface TextareaHandlers {
+  textarea: HTMLTextAreaElement;
+  focus: () => void;
+  blur: () => void;
+}
+
 interface TerminalEntry {
   terminal: Terminal;
   searchAddon: SearchAddon;
@@ -21,6 +27,9 @@ interface TerminalEntry {
   /** Cleanup callbacks created during TerminalPanel setup (PTY subs, etc.).
    *  Called only on actual terminal close, NOT on layout-induced unmounts. */
   cleanups: (() => void)[];
+  /** Current focus/blur handlers on the textarea. Managed across stash/unstash
+   *  to prevent stale listeners from causing focus fights. */
+  textareaHandlers: TextareaHandlers | null;
 }
 
 const registry = new Map<string, TerminalEntry>();
@@ -44,7 +53,7 @@ export function registerTerminal(
   searchAddon: SearchAddon,
   fitAddon: FitAddon,
 ): void {
-  registry.set(id, { terminal, searchAddon, fitAddon, webglAddon: null, stashed: false, cleanups: [] });
+  registry.set(id, { terminal, searchAddon, fitAddon, webglAddon: null, stashed: false, cleanups: [], textareaHandlers: null });
 }
 
 /** Store the WebGL addon reference for lifecycle management. */
@@ -113,10 +122,32 @@ export function unstashTerminal(id: string, container: HTMLElement): boolean {
 export function disposeTerminal(id: string): void {
   const entry = registry.get(id);
   if (!entry) return;
+  removeTextareaHandlers(id);
   for (const cleanup of entry.cleanups) {
     try { cleanup(); } catch { /* ignore */ }
   }
   try { entry.webglAddon?.dispose(); } catch { /* ignore */ }
   try { entry.terminal.dispose(); } catch { /* already disposed */ }
   registry.delete(id);
+}
+
+/** Attach focus/blur handlers to the terminal's textarea, removing any stale ones first. */
+export function setTextareaHandlers(id: string, handlers: TextareaHandlers): void {
+  const entry = registry.get(id);
+  if (!entry) return;
+  // Remove existing handlers first to prevent duplicates
+  removeTextareaHandlers(id);
+  handlers.textarea.addEventListener('focus', handlers.focus);
+  handlers.textarea.addEventListener('blur', handlers.blur);
+  entry.textareaHandlers = handlers;
+}
+
+/** Remove focus/blur handlers from the terminal's textarea. */
+export function removeTextareaHandlers(id: string): void {
+  const entry = registry.get(id);
+  if (!entry?.textareaHandlers) return;
+  const { textarea, focus, blur } = entry.textareaHandlers;
+  textarea.removeEventListener('focus', focus);
+  textarea.removeEventListener('blur', blur);
+  entry.textareaHandlers = null;
 }
