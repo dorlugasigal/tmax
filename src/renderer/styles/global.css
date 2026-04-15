@@ -627,6 +627,30 @@ html.transparency-active .input-dialog {
   background: rgba(137, 180, 250, 0.1);
 }
 
+.terminal-pane-dormant-btn {
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--text-secondary);
+  font-size: 9px;
+  padding: 1px 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.terminal-panel:hover .terminal-pane-dormant-btn {
+  opacity: 0.5;
+}
+
+.terminal-pane-dormant-btn:hover {
+  opacity: 1 !important;
+  color: #f9e2af;
+  border-color: #f9e2af;
+  background: rgba(249, 226, 175, 0.1);
+}
+
 /* ── Terminal diagnostics overlay ─────────────────────────────────── */
 .terminal-diag-overlay {
   position: absolute;
@@ -819,6 +843,7 @@ html.transparency-active .input-dialog {
   inset: 0;
   pointer-events: none;
 }
+
 
 /* ===== Floating Layer ===== */
 .floating-layer {

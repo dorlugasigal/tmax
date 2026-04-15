@@ -66,7 +66,9 @@ const DetachedApp: React.FC<DetachedAppProps> = ({ terminalId }) => {
 
       const fitAddon = new FitAddon();
       term.loadAddon(fitAddon);
-      term.loadAddon(new WebLinksAddon());
+      // Custom URL regex: include | (pipe) in URLs (xterm.js default excludes it)
+      const urlRegex = /(https?|HTTPS?):[/]{2}[^\s"'!*(){}\\\^<>`]*[^\s"':,.!?{}\\\^~\[\]`()<>]/;
+      term.loadAddon(new WebLinksAddon(undefined, { urlRegex }));
 
       // Clipboard paste/copy handling
       term.attachCustomKeyEventHandler((event) => {

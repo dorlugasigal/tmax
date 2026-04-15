@@ -26,10 +26,28 @@ const config: ForgeConfig = {
       const dest = path.join(appDir, 'node_modules', 'node-pty');
       await fs.copy(src, dest);
 
+      // Ensure all binaries are executable (NTFS doesn't preserve Unix perms)
+      const prebuildsDir = path.join(dest, 'prebuilds');
+      if (fs.existsSync(prebuildsDir)) {
+        for (const platform of fs.readdirSync(prebuildsDir)) {
+          const platformDir = path.join(prebuildsDir, platform);
+          for (const file of fs.readdirSync(platformDir)) {
+            fs.chmodSync(path.join(platformDir, file), 0o755);
+          }
+        }
+      }
+
       const napiSrc = path.join(__dirname, 'node_modules', 'node-addon-api');
       const napiDest = path.join(appDir, 'node_modules', 'node-addon-api');
       if (fs.existsSync(napiSrc)) await fs.copy(napiSrc, napiDest);
-      console.log(`Copied node-pty native module to ${appDir}`);
+
+      // chokidar is marked as external in vite.main.config.ts (native ESM),
+      // so it must be present in node_modules at runtime
+      const chokidarSrc = path.join(__dirname, 'node_modules', 'chokidar');
+      const chokidarDest = path.join(appDir, 'node_modules', 'chokidar');
+      if (fs.existsSync(chokidarSrc)) await fs.copy(chokidarSrc, chokidarDest);
+
+      console.log(`Copied native/external modules to ${appDir}`);
     },
   },
   packagerConfig: {

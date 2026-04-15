@@ -222,9 +222,12 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
     });
 
     const fitAddon = new FitAddon();
+    // Custom URL regex: xterm.js default excludes | (pipe) from URLs, but many
+    // dev tools emit URLs containing pipes (e.g. query params with | delimiters).
+    const urlRegex = /(https?|HTTPS?):[/]{2}[^\s"'!*(){}\\\^<>`]*[^\s"':,.!?{}\\\^~\[\]`()<>]/;
     const webLinksAddon = new WebLinksAddon((_event, uri) => {
       window.open(uri, '_blank');
-    });
+    }, { urlRegex });
     const searchAddon = new SearchAddon();
 
     term.loadAddon(fitAddon);
@@ -854,6 +857,14 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
               useTerminalStore.getState().openDiffReview(terminalId);
             }}
           >Diff</button>
+          <button
+            className="terminal-pane-dormant-btn"
+            title="Hide pane (dormant)"
+            onClick={(e) => {
+              e.stopPropagation();
+              useTerminalStore.getState().moveToDormant(terminalId);
+            }}
+          >&#128065;</button>
         </div>
       )}
       {showDiag && <DiagnosticsOverlay terminalId={terminalId} diagRef={diagRef} mainDiag={mainDiagRef.current} logPath={logPathRef.current} onClose={() => setShowDiag(false)} />}
