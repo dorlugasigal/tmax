@@ -659,6 +659,24 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
     return () => clearInterval(id);
   }, []);
 
+  // Refit all terminals when view mode changes (focus↔grid↔split).
+  // The ResizeObserver may fire before the DOM has fully settled, leaving
+  // xterm's viewport scrollbar stale. A delayed refit fixes this.
+  const viewMode = useTerminalStore((s) => s.viewMode);
+  useEffect(() => {
+    if (!fitAddonRef.current || !terminalRef.current) return;
+    const timer = setTimeout(() => {
+      try {
+        fitAddonRef.current?.fit();
+        if (terminalRef.current) {
+          const { cols, rows } = terminalRef.current;
+          window.terminalAPI.resizePty(terminalId, cols, rows);
+        }
+      } catch { /* terminal may be disposed */ }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [viewMode, terminalId]);
+
   // Programmatic focus when this terminal becomes focused in the store,
   // or when overlays close (to restore DEC focus reporting for Copilot CLI)
   useEffect(() => {
