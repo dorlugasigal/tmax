@@ -52,6 +52,62 @@
     .badge.link { cursor: pointer; transition: border-color 0.15s; }
     .badge.link:hover { border-color: var(--blue); color: var(--fg); text-decoration: none; }
 
+    .gallery {
+      max-width: 1000px;
+      margin: 0 auto 60px;
+      padding: 0 20px;
+    }
+    .gallery h2 { font-size: 32px; text-align: center; margin-bottom: 32px; }
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    .gallery-item {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .gallery-item:hover {
+      border-color: rgba(255,255,255,0.12);
+      transform: translateY(-2px);
+    }
+    .gallery-item img {
+      width: 100%;
+      display: block;
+      cursor: pointer;
+    }
+    .gallery-item .caption {
+      padding: 12px 16px;
+      font-size: 13px;
+      color: var(--fg2);
+    }
+    .gallery-item .caption strong {
+      color: var(--fg);
+      display: block;
+      margin-bottom: 2px;
+      font-size: 14px;
+    }
+    .gallery-lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      background: rgba(0,0,0,0.85);
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .gallery-lightbox.active { display: flex; }
+    .gallery-lightbox img {
+      max-width: 90vw;
+      max-height: 90vh;
+      border-radius: 8px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+    }
+
     .download-section {
       background: var(--bg2);
       border: 1px solid var(--border);
@@ -277,6 +333,36 @@
 
 <div class="screenshot">
   <img src="https://raw.githubusercontent.com/InbarR/tmax/main/assets/screenshot.png" alt="tmax screenshot">
+</div>
+
+<div class="gallery">
+  <h2>See it in action</h2>
+  <div class="gallery-grid">
+    <div class="gallery-item">
+      <img src="screenshots/tmax-explorer.png" alt="File explorer with AI sessions" onclick="openLightbox(this.src)">
+      <div class="caption"><strong>File explorer + AI sessions</strong>Browse files, preview code, and manage Claude Code and Copilot sessions side by side.</div>
+    </div>
+    <div class="gallery-item">
+      <img src="screenshots/tmax-sessions.png" alt="AI session tracking" onclick="openLightbox(this.src)">
+      <div class="caption"><strong>AI session tracking</strong>Jump to any prompt, search sessions, track what's active or completed.</div>
+    </div>
+    <div class="gallery-item">
+      <img src="screenshots/tmax-pallette.png" alt="Command palette" onclick="openLightbox(this.src)">
+      <div class="caption"><strong>Command palette</strong>Every action at your fingertips. Search and run any command with keyboard shortcuts shown.</div>
+    </div>
+    <div class="gallery-item">
+      <img src="screenshots/tmax-dirs.png" alt="Directory panel" onclick="openLightbox(this.src)">
+      <div class="caption"><strong>Quick directories</strong>Save favorite folders, see recent paths, open terminals wherever you need.</div>
+    </div>
+    <div class="gallery-item">
+      <img src="screenshots/tmax-menu.png" alt="Tab context menu" onclick="openLightbox(this.src)">
+      <div class="caption"><strong>Tab context menu</strong>Split, float, group, recolor, hide, and manage tabs with a right-click.</div>
+    </div>
+  </div>
+</div>
+
+<div id="gallery-lightbox" class="gallery-lightbox" onclick="this.classList.remove('active')">
+  <img id="lightbox-img" src="" alt="Enlarged screenshot">
 </div>
 
 <div class="download-section" id="download">
@@ -519,6 +605,12 @@ if (detectPlatform().os === 'macOS') {
   document.querySelectorAll('kbd').forEach(kbd => {
     kbd.textContent = kbd.textContent.replace(/Ctrl/g, '\u2318');
   });
+}
+
+function openLightbox(src) {
+  const lb = document.getElementById('gallery-lightbox');
+  document.getElementById('lightbox-img').src = src;
+  lb.classList.add('active');
 }
 
 loadRelease().then(() => {

@@ -768,12 +768,14 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
       data-terminal-id={terminalId}
       onMouseDownCapture={(e) => {
         if (!isFocused) {
-          // This click is a pane-switch click, not a TUI interaction.
-          // Stop it before xterm sees it so it isn't forwarded to the PTY as a
-          // mouse event (which causes mouse-reporting apps like Claude CLI to
-          // shift their internal focus away from the input field).
-          e.stopPropagation();
-          window.terminalAPI.diagLog('renderer:pane-switch-click-suppressed', { terminalId });
+          // Only suppress mouse events targeting the xterm canvas — this prevents
+          // mouse-reporting apps (Claude CLI) from shifting focus, while still
+          // letting mousedown reach the viewport element for scroll targeting (#48).
+          const target = e.target as HTMLElement;
+          if (target.tagName === 'CANVAS' || target.classList.contains('xterm-cursor-layer')) {
+            e.stopPropagation();
+            window.terminalAPI.diagLog('renderer:pane-switch-click-suppressed', { terminalId });
+          }
         }
         handleFocus();
       }}
