@@ -447,10 +447,10 @@ const AppearanceSettings: React.FC = () => {
           })()}
         </div>
       </SettingRow>
-      <SettingRow label="Show Tab Close Buttons" description="Hide close buttons to avoid accidentally closing tabs">
+      <SettingRow label="Hide Tab Close Buttons" description="Hide the ✕ button on tabs to avoid accidentally closing them">
         <label className="toggle-switch">
-          <input type="checkbox" checked={(config as any).showTabCloseButtons !== false}
-            onChange={() => useTerminalStore.getState().toggleShowTabCloseButtons()} />
+          <input type="checkbox" checked={(config as any).hideTabCloseButtons === true}
+            onChange={() => useTerminalStore.getState().toggleHideTabCloseButtons()} />
           <span className="toggle-track" />
         </label>
       </SettingRow>
