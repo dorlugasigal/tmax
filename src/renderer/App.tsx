@@ -134,8 +134,25 @@ const App: React.FC = () => {
     api.startClaudeCodeWatching?.();
 
     const store = useTerminalStore.getState;
+
+    // In-app toast on status transition to needs-attention.
+    // Edge-triggered: only fires when transitioning INTO awaitingApproval /
+    // waitingForUser, not on every update. Works for both Copilot and Claude.
+    const prevStatus = new Map<string, string>();
+    const maybeNotify = (session: CopilotSessionSummary, provider: string) => {
+      const prev = prevStatus.get(session.id);
+      prevStatus.set(session.id, session.status);
+      const attention = session.status === 'awaitingApproval' || session.status === 'waitingForUser';
+      const wasAttention = prev === 'awaitingApproval' || prev === 'waitingForUser';
+      if (!attention || wasAttention) return;
+      const label = session.status === 'awaitingApproval' ? 'needs approval' : 'waiting for input';
+      const title = session.summary || session.repository || session.id.slice(0, 8);
+      store().addToast(`${provider}: ${title} - ${label}`);
+    };
+
     const unsubCopilotUpdated = api.onCopilotSessionUpdated?.((session: CopilotSessionSummary) => {
       store().updateCopilotSession(session);
+      maybeNotify(session, 'Copilot');
     });
     const unsubCopilotAdded = api.onCopilotSessionAdded?.((session: CopilotSessionSummary) => {
       store().addCopilotSession(session);
@@ -145,6 +162,7 @@ const App: React.FC = () => {
     });
     const unsubClaudeUpdated = api.onClaudeCodeSessionUpdated?.((session: CopilotSessionSummary) => {
       store().updateClaudeCodeSession(session);
+      maybeNotify(session, 'Claude');
     });
     const unsubClaudeAdded = api.onClaudeCodeSessionAdded?.((session: CopilotSessionSummary) => {
       store().addClaudeCodeSession(session);
