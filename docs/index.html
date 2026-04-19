@@ -538,12 +538,19 @@ function detectPlatform() {
   const ua = navigator.userAgent.toLowerCase();
   const platform = navigator.platform.toLowerCase();
   if (platform.includes('mac') || ua.includes('mac')) {
-    // Detect Apple Silicon vs Intel
-    // Safari on Apple Silicon reports different GL renderer
+    // Detect Apple Silicon vs Intel (sync best-effort; refineMacArch() can
+    // correct async via UA Client Hints). Safari/Chromium on M-series Macs
+    // report "Intel" in navigator.userAgent for backward compat, so UA
+    // sniffing alone isn't reliable. WebGL renderer often reveals it.
     const canvas = document.createElement('canvas');
     const gl = canvas.getContext('webgl');
     const renderer = gl ? gl.getParameter(gl.RENDERER) : '';
-    const isArm = /apple m|apple gpu/i.test(renderer) || navigator.userAgent.includes('ARM');
+    const rendererSaysArm = /apple m|apple gpu/i.test(renderer);
+    const uaSaysArm = navigator.userAgent.includes('ARM');
+    const rendererSaysIntel = /intel/i.test(renderer);
+    // Default to arm64 if we can't positively identify Intel - most Macs sold
+    // since 2020 are Apple Silicon, so arm64 is the safer bet on uncertainty.
+    const isArm = rendererSaysArm || uaSaysArm || !rendererSaysIntel;
     return { os: 'macOS', arch: isArm ? 'arm64' : 'x64', icon: '🍎' };
   }
   if (platform.includes('linux') || ua.includes('linux')) {
@@ -554,6 +561,24 @@ function detectPlatform() {
     return { os: 'Windows', arch: 'x64', icon: '&#128187;' };
   }
   return { os: 'Windows', arch: 'x64', icon: '&#128187;' };
+}
+
+/**
+ * Async refinement using User-Agent Client Hints. Available in Chromium-based
+ * browsers and gives a reliable `architecture` string ("arm" on Apple Silicon,
+ * "x86" on Intel) even when navigator.userAgent lies for backward compat.
+ * Returns null if UA-CH isn't available or the hint doesn't apply.
+ */
+async function refineMacArch(detected) {
+  if (detected.os !== 'macOS') return detected;
+  try {
+    const uad = navigator.userAgentData;
+    if (!uad || typeof uad.getHighEntropyValues !== 'function') return detected;
+    const hints = await uad.getHighEntropyValues(['architecture']);
+    if (hints.architecture === 'arm') return { ...detected, arch: 'arm64' };
+    if (hints.architecture === 'x86') return { ...detected, arch: 'x64' };
+  } catch { /* ignore */ }
+  return detected;
 }
 
 // Every pattern here is arch-specific. Generic extensions like `.deb` or
@@ -569,7 +594,7 @@ const ALL_DOWNLOADS = [
 ];
 
 async function loadRelease() {
-  const detected = detectPlatform();
+  const detected = await refineMacArch(detectPlatform());
   document.getElementById('detected-os').innerHTML = `${detected.icon} Detected: ${detected.os} (${detected.arch})`;
 
   try {
