@@ -87,7 +87,9 @@
 <script>
 const REPO = 'InbarR/tmax';
 // Assets to exclude from download counts
-const EXCLUDED = new Set(['RELEASES']);
+// Matches RELEASES, RELEASES-x64, RELEASES-arm64 - Squirrel metadata files
+// fetched on every auto-update attempt. Not real installs.
+const IS_META = (name) => name.startsWith('RELEASES');
 // Auto-update assets (not new users)
 const IS_UPDATE = (name) => /\.nupkg$/.test(name);
 
@@ -129,7 +131,7 @@ function renderChart(releases) {
   const data = sorted.map(r => {
     const byOS = { windows: 0, macos: 0, linux: 0 };
     for (const a of r.assets) {
-      if (EXCLUDED.has(a.name) || IS_UPDATE(a.name)) continue;
+      if (IS_META(a.name) || IS_UPDATE(a.name)) continue;
       const p = platformOf(a.name);
       if (p in byOS) byOS[p] += a.download_count;
     }
@@ -281,7 +283,7 @@ function renderTimeline() {
     const perKey = new Map();
     for (const [tag, assets] of Object.entries(snap.releases)) {
       for (const [name, n] of Object.entries(assets)) {
-        if (EXCLUDED.has(name) || name.startsWith('RELEASES')) continue;
+        if (IS_META(name)) continue;
         if (IS_UPDATE(name)) continue;
         const key = timelineStack === 'platform' ? platformOf(name) : tag;
         perKey.set(key, (perKey.get(key) || 0) + n);
@@ -464,7 +466,7 @@ async function load() {
   let totalUsers = 0, totalUpdates = 0;
   for (const r of releases) {
     for (const a of r.assets) {
-      if (EXCLUDED.has(a.name)) continue;
+      if (IS_META(a.name)) continue;
       if (IS_UPDATE(a.name)) totalUpdates += a.download_count;
       else totalUsers += a.download_count;
     }
@@ -485,7 +487,7 @@ function render() {
   for (let i = 0; i < allData.length; i++) {
     const r = allData[i];
     const assets = r.assets
-      .filter(a => !EXCLUDED.has(a.name))
+      .filter(a => !IS_META(a.name))
       .filter(a => activeFilter === 'all' || platformOf(a.name) === activeFilter)
       .sort((a, b) => b.download_count - a.download_count);
 
