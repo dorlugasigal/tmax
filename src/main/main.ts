@@ -16,6 +16,7 @@ import { WslSessionManager } from './wsl-session-manager';
 import { VersionChecker } from './version-checker';
 import { initDiagLogger, getDiagLogPath, diagLog } from './diag-logger';
 import { GitDiffService, resolveGitRoot } from './git-diff-service';
+import { listWorktrees, createWorktree, deleteWorktree, getBranches } from './git-worktree-service';
 import type { DiffMode } from '../shared/diff-types';
 
 // Handle Squirrel.Windows lifecycle events (install, update, uninstall)
@@ -132,6 +133,29 @@ let claudeCodeWatcher: ClaudeCodeSessionWatcher | null = null;
 let wslSessionManager: WslSessionManager | null = null;
 let versionChecker: VersionChecker | null = null;
 let clipboardTempDir: string | null = null;
+const CLIPBOARD_DIR_STALE_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+/**
+ * Remove stale `tmax-clipboard-*` directories from os.tmpdir().
+ * Older-than-threshold directories are leftovers from crashed or killed sessions.
+ * Live sessions that regularly write images will have a recent mtime and are preserved.
+ */
+function sweepStaleClipboardDirs(): void {
+  try {
+    const tmp = os.tmpdir();
+    const now = Date.now();
+    for (const name of fs.readdirSync(tmp)) {
+      if (!name.startsWith('tmax-clipboard-') && name !== 'tmax-clipboard') continue;
+      const full = path.join(tmp, name);
+      try {
+        const stat = fs.statSync(full);
+        if (!stat.isDirectory()) continue;
+        if (now - stat.mtimeMs < CLIPBOARD_DIR_STALE_MS) continue;
+        fs.rmSync(full, { recursive: true, force: true });
+      } catch { /* skip locked or inaccessible dirs */ }
+    }
+  } catch { /* tmp listing failed — ignore */ }
+}
 const sessionStore = new Store({ name: 'tmax-session' });
 const detachedWindows = new Map<string, BrowserWindow>();
 
@@ -582,7 +606,8 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IPC.CLIPBOARD_SAVE_IMAGE, (_event, base64Png: string) => {
-    if (!clipboardTempDir) {
+    // Re-create if the dir was swept by another instance's startup cleanup
+    if (!clipboardTempDir || !fs.existsSync(clipboardTempDir)) {
       clipboardTempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tmax-clipboard-'));
     }
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -609,6 +634,20 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.DIFF_GET_ANNOTATED_FILE, async (_event, cwd: string, filePath: string, mode: DiffMode) => {
     return diffService.getAnnotatedFile(cwd, filePath, mode);
+  });
+
+  // ── Git worktree IPC ────────────────────────────────────────────────
+  ipcMain.handle(IPC.GIT_LIST_WORKTREES, async (_event, cwd: string) => {
+    return listWorktrees(cwd);
+  });
+  ipcMain.handle(IPC.GIT_CREATE_WORKTREE, async (_event, repoPath: string, branchName: string, baseBranch: string) => {
+    return createWorktree(repoPath, branchName, baseBranch);
+  });
+  ipcMain.handle(IPC.GIT_DELETE_WORKTREE, async (_event, repoPath: string, worktreePath: string) => {
+    return deleteWorktree(repoPath, worktreePath);
+  });
+  ipcMain.handle(IPC.GIT_GET_BRANCHES, async (_event, repoPath: string) => {
+    return getBranches(repoPath);
   });
 
   // ── File explorer IPC ──────────────────────────────────────────────
@@ -760,6 +799,9 @@ process.on('uncaughtException', (error) => {
 
 app.whenReady().then(() => {
   try {
+    // Purge leftover clipboard temp dirs from crashed/killed sessions
+    sweepStaleClipboardDirs();
+
     // Force dark title bar/frame regardless of Windows system theme
     nativeTheme.themeSource = 'dark';
 
@@ -825,10 +867,37 @@ app.whenReady().then(() => {
     }
   });
 
+  // Keep ConPTY pipes alive during screen lock by periodically resizing
+  let lockPingInterval: ReturnType<typeof setInterval> | null = null;
+
+  powerMonitor.on('lock-screen', () => {
+    diagLog('system:lock-screen');
+    console.log('Screen locked, starting PTY keep-alive pings');
+    if (lockPingInterval) clearInterval(lockPingInterval);
+    lockPingInterval = setInterval(() => {
+      ptyManager?.resizeAll();
+    }, 30000); // ping every 30 seconds
+  });
+
+  powerMonitor.on('unlock-screen', () => {
+    diagLog('system:unlock-screen');
+    console.log('Screen unlocked, stopping keep-alive pings');
+    if (lockPingInterval) {
+      clearInterval(lockPingInterval);
+      lockPingInterval = null;
+    }
+    // One final resize to wake everything up
+    ptyManager?.resizeAll();
+  });
+
   // Wake up ConPTY processes after system resume from sleep/hibernate
   powerMonitor.on('resume', () => {
     diagLog('system:resume');
     console.log('System resumed from sleep, pinging all PTYs');
+    if (lockPingInterval) {
+      clearInterval(lockPingInterval);
+      lockPingInterval = null;
+    }
     ptyManager?.resizeAll();
   });
 });

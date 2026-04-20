@@ -105,35 +105,6 @@ Built with Electron, React, TypeScript, xterm.js, and node-pty.
 - Add/remove shell profiles (PowerShell, CMD, WSL, or any executable)
 - Set default start folder globally or per shell
 
-## Keyboard Shortcuts
-
-| Shortcut | Action |
-|---|---|
-| `Ctrl+Shift+P` | Command palette |
-| `Ctrl+Shift+N` | New terminal |
-| `Ctrl+Shift+W` | Close terminal |
-| `Ctrl+Shift+R` | Rename terminal |
-| `Ctrl+Shift+G` | Jump to terminal by name |
-| `Ctrl+Shift+J` | Pane hints (press letter to jump) |
-| `Ctrl+Shift+K` | Jump to prompt in AI session |
-| `Ctrl+Shift+X` | File explorer |
-| `Ctrl+Shift+B` | Hide / show tab bar |
-| `Shift+Arrow` | Move focus between panes |
-| `Ctrl+Shift+Arrow` | Move/swap terminal in direction |
-| `Ctrl+Alt+Arrow` | Split in that direction |
-| `Ctrl+Shift+F` | Toggle view mode (Focus / Grid) |
-| `Ctrl+Shift+L` | Cycle grid column layout |
-| `Ctrl+Shift+C` | AI Sessions panel (Copilot / Claude) |
-| `Ctrl+Shift+D` | Directory favorites panel |
-| `Ctrl+Shift+E` | Equalize all pane sizes |
-| `Ctrl+Shift+Alt+Arrow` | Resize pane |
-| `Ctrl+=` / `Ctrl+-` | Zoom in / out |
-| `Ctrl+0` | Reset zoom |
-| `Ctrl+,` | Open settings |
-| `Ctrl+Shift+?` | Show all shortcuts |
-
-All shortcuts are remappable in Settings > Keybindings. On macOS, `Ctrl` is replaced with `Cmd (⌘)`.
-
 ## Tab Context Menu
 
 Right-click any tab for:
@@ -152,7 +123,54 @@ Right-click any tab for:
 
 Download the latest version from the [Releases page](https://github.com/InbarR/tmax/releases). Available for Windows (.exe installer + portable .zip), macOS (.dmg for Apple Silicon and Intel), and Linux (.deb, .rpm).
 
-> **macOS:** If you see _"tmax is damaged and can't be opened"_, run: `xattr -cr /Applications/tmax.app`
+### Troubleshooting Downloads
+
+tmax is an independent open-source project and isn't code-signed (certificates cost $300-600/year on Windows and $99/year on macOS). Your browser and operating system may warn you about the download. All of these warnings are cosmetic - nothing is wrong with the file itself. Here's how to get past each one.
+
+---
+
+#### 🪟 Windows
+
+**"isn't commonly downloaded" (Edge / Chrome)**
+
+![Edge SmartScreen warning](docs/screenshots/download-warn-edge.png)
+
+Your browser may silently pause the download and show the message above, or quietly stash it as `Unconfirmed *.crdownload` in your Downloads folder:
+
+![Unconfirmed crdownload](docs/screenshots/download-warn-crdownload.png)
+
+This is [Microsoft SmartScreen's reputation filter](https://learn.microsoft.com/en-us/windows/security/operating-system-security/virus-and-threat-protection/microsoft-defender-smartscreen/) - new / niche installers trigger it regardless of content.
+
+To allow the download:
+1. In the download warning, click the **⋯** menu and choose **Keep**. Edge then shows a second dialog:
+
+   ![Edge Keep confirmation](docs/screenshots/download-warn-edge-expanded.png)
+
+2. Click the **dropdown arrow** next to the red **Delete** button and choose **Keep anyway**.
+
+**"Windows protected your PC" on first launch**
+
+After installing, the first time you run tmax you'll see a blue "Windows protected your PC" dialog from SmartScreen. Click **More info** at the top, then **Run anyway** at the bottom.
+
+---
+
+#### 🍎 macOS
+
+**"tmax is damaged and can't be opened"**
+
+![macOS damaged warning](docs/screenshots/download-warn-macos.png)
+
+Despite what the dialog says, the app is fine. macOS requires apps to be signed with an Apple Developer certificate ($99/year). Since I'm not planning to pay that evil company 😏, you have to bypass the quarantine flag yourself. Click **Cancel** (not Move to Trash!) and run this in Terminal:
+
+```bash
+xattr -cr /Applications/tmax.app
+```
+
+This clears the quarantine extended attribute so macOS skips the signature check. Open tmax normally afterwards.
+
+If you installed to a different location, adjust the path (e.g. `~/Applications/tmax.app`).
+
+---
 
 ## Building from Source
 

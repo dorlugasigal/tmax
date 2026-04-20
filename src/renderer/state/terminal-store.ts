@@ -166,13 +166,13 @@ export const TAB_COLORS = [
   { name: 'Green', value: '#7FBA00' },
   { name: 'Blue', value: '#00A4EF' },
   { name: 'Yellow', value: '#FFB900' },
-  // Extended palette
-  { name: 'Purple', value: '#aa44ff' },
-  { name: 'Cyan', value: '#00dddd' },
-  { name: 'Pink', value: '#ff44aa' },
-  { name: 'Orange', value: '#ff8800' },
-  { name: 'Gray', value: '#888888' },
-  { name: 'Black', value: '#333333' },
+  // Extended palette - Fluent UI tones so they sit next to the MS logo colors without clashing
+  { name: 'Purple', value: '#6264A7' },
+  { name: 'Teal', value: '#00B7C3' },
+  { name: 'Magenta', value: '#C239B3' },
+  { name: 'Orange', value: '#D83B01' },
+  { name: 'Gray', value: '#737373' },
+  { name: 'Dark', value: '#323130' },
 ];
 
 // ── Theme → CSS variable sync ────────────────────────────────────────
@@ -534,6 +534,7 @@ interface TerminalStore {
   showSettings: boolean;
   tabBarPosition: 'top' | 'bottom' | 'left' | 'right';
   hideTabTitles: boolean;
+  hideTabCloseButtons: boolean;
   renamingTerminalId: TerminalId | null;
   viewMode: 'split' | 'focus' | 'grid';
   gridColumns: number; // 0 = auto (sqrt-based), 1..N = fixed column count
@@ -546,6 +547,11 @@ interface TerminalStore {
   recentDirs: string[];
   showDirPicker: boolean;
   showFileExplorer: boolean;
+  // When set, FileExplorer consumes this path on next open then clears it.
+  fileExplorerTargetPath: string | null;
+  showWorktreePanel: boolean;
+  worktreeRepos: RepoWorktrees[];
+  worktreeLoading: boolean;
   tabMenuTerminalId: TerminalId | null;
   autoColorTabs: boolean;
   showCopilotPanel: boolean;
@@ -603,6 +609,7 @@ interface TerminalStore {
   updateConfig: (update: Partial<AppConfig>) => Promise<void>;
   toggleTabBarPosition: () => void;
   toggleHideTabTitles: () => void;
+  toggleHideTabCloseButtons: () => void;
   setTerminalOpacity: (opacity: number) => void;
   startRenaming: (id: TerminalId | null) => void;
   toggleViewMode: () => void;
@@ -627,6 +634,11 @@ interface TerminalStore {
   cdToDir: (dir: string) => void;
   toggleDirPicker: () => void;
   toggleFileExplorer: () => void;
+  openFileExplorerAt: (path: string) => void;
+  toggleWorktreePanel: () => void;
+  loadWorktrees: () => Promise<void>;
+  createWorktree: (repoPath: string, branchName: string, baseBranch: string) => Promise<{ success: boolean; error?: string }>;
+  deleteWorktree: (repoPath: string, worktreePath: string) => Promise<{ success: boolean; error?: string }>;
   openTabMenu: (id?: TerminalId) => void;
   loadDirs: () => Promise<void>;
   saveDirs: () => Promise<void>;
@@ -695,6 +707,10 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   showSettings: false,
   showDirPicker: false,
   showFileExplorer: false,
+  fileExplorerTargetPath: null,
+  showWorktreePanel: false,
+  worktreeRepos: [] as RepoWorktrees[],
+  worktreeLoading: false,
   autoColorTabs: true,
   showCopilotPanel: false,
   promptsDialogRequest: null,
@@ -714,6 +730,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   recentDirs: [],
   tabBarPosition: 'top' as 'top' | 'bottom' | 'left' | 'right',
   hideTabTitles: false,
+  hideTabCloseButtons: false,
   renamingTerminalId: null,
   viewMode: 'grid' as 'split' | 'focus' | 'grid',
   gridColumns: 0,
@@ -733,6 +750,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     const updates: Record<string, unknown> = { config };
     if (config?.tabBarPosition) updates.tabBarPosition = config.tabBarPosition;
     if (typeof (config as any)?.hideTabTitles === 'boolean') updates.hideTabTitles = (config as any).hideTabTitles;
+    if (typeof (config as any)?.hideTabCloseButtons === 'boolean') updates.hideTabCloseButtons = (config as any).hideTabCloseButtons;
     if ((config as any)?.terminalOpacity != null) {
       updates.terminalOpacity = (config as any).terminalOpacity;
       document.documentElement.style.setProperty('--terminal-opacity', String((config as any).terminalOpacity));
@@ -749,7 +767,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     if (!profile) return;
 
     const id = uuidv4();
-    const cwd = profile.cwd || (config as any).defaultCwd || (navigator.platform.startsWith('Win') ? 'C:\\Users' : window.platformInfo?.homeDir || '/');
+    const cwd = profile.cwd || (config as any).defaultCwd || ((window as any).platformInfo?.platform === 'win32' ? 'C:\\Users' : (window as any).platformInfo?.homeDir || '/');
     const { pid } = await window.terminalAPI.createPty({
       id,
       shellPath: profile.path,
@@ -1420,6 +1438,16 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     );
     if (neighbor) {
       set({ focusedTerminalId: neighbor });
+      // Immediately move DOM focus and send DEC focus sequences
+      // (the useEffect in TerminalPanel is async and causes a race)
+      const entry = getTerminalEntry(neighbor);
+      if (entry) {
+        entry.terminal.focus();
+        window.terminalAPI.writePty(focusedTerminalId, '\x1b[O');
+        requestAnimationFrame(() => {
+          window.terminalAPI.writePty(neighbor, '\x1b[I');
+        });
+      }
     }
   },
 
@@ -1528,6 +1556,12 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     const val = !get().hideTabTitles;
     set({ hideTabTitles: val });
     get().updateConfig({ hideTabTitles: val } as any);
+  },
+
+  toggleHideTabCloseButtons: () => {
+    const val = !get().hideTabCloseButtons;
+    set({ hideTabCloseButtons: val });
+    get().updateConfig({ hideTabCloseButtons: val } as any);
   },
 
   setTerminalOpacity: (opacity: number) => {
@@ -1687,21 +1721,24 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   },
 
   zoomIn: () => {
-    const newSize = Math.min(get().fontSize + 1, 32);
-    set({ fontSize: newSize });
-    get().updateConfig({ terminal: { ...get().config!.terminal, fontSize: newSize } });
+    const { fontSize, config } = get();
+    const next = Math.min(fontSize + 1, 32);
+    set({ fontSize: next });
+    if (config) get().updateConfig({ terminal: { ...config.terminal, fontSize: next } } as any);
   },
 
   zoomOut: () => {
-    const newSize = Math.max(get().fontSize - 1, 8);
-    set({ fontSize: newSize });
-    get().updateConfig({ terminal: { ...get().config!.terminal, fontSize: newSize } });
+    const { fontSize, config } = get();
+    const next = Math.max(fontSize - 1, 8);
+    set({ fontSize: next });
+    if (config) get().updateConfig({ terminal: { ...config.terminal, fontSize: next } } as any);
   },
 
   zoomReset: () => {
-    const defaultSize = 14;
-    set({ fontSize: defaultSize });
-    get().updateConfig({ terminal: { ...get().config!.terminal, fontSize: defaultSize } });
+    const { config } = get();
+    const next = config?.terminal?.fontSize ?? 14;
+    set({ fontSize: next });
+    // zoomReset restores the config default; no need to write it back
   },
 
   saveNamedLayout: async (name: string) => {
@@ -1904,6 +1941,75 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     set((state) => ({ showFileExplorer: !state.showFileExplorer }));
   },
 
+  openFileExplorerAt: (path: string) => {
+    // Toggle: if panel is already open, close it. Otherwise open at the path.
+    const { showFileExplorer } = get();
+    if (showFileExplorer) {
+      set({ showFileExplorer: false, fileExplorerTargetPath: null });
+    } else {
+      set({ showFileExplorer: true, fileExplorerTargetPath: path });
+    }
+  },
+
+  // ── Worktree panel actions ────────────────────────────────────────
+  toggleWorktreePanel: () => {
+    const wasShowing = get().showWorktreePanel;
+    set({ showWorktreePanel: !wasShowing });
+    if (!wasShowing) {
+      get().loadWorktrees();
+    }
+  },
+
+  loadWorktrees: async () => {
+    const seq = ++_loadWorktreesSeq;
+    const { favoriteDirs, recentDirs } = get();
+    const allDirs = [...new Set([...favoriteDirs, ...recentDirs])];
+    if (allDirs.length === 0) {
+      set({ worktreeRepos: [], worktreeLoading: false });
+      return;
+    }
+    set({ worktreeLoading: true });
+    const results = await Promise.allSettled(
+      allDirs.map((dir) => window.terminalAPI.listWorktrees(dir)),
+    );
+    if (seq !== _loadWorktreesSeq) return;
+    const oldRepos = get().worktreeRepos;
+    const oldExpandState = new Map(oldRepos.map((r) => [r.gitRoot, r.isExpanded]));
+    const seenRoots = new Set<string>();
+    const repos: RepoWorktrees[] = [];
+    for (const result of results) {
+      if (result.status !== 'fulfilled') continue;
+      const repo = result.value as RepoWorktrees;
+      if (!repo.gitRoot || seenRoots.has(repo.gitRoot)) continue;
+      seenRoots.add(repo.gitRoot);
+      // Only show repos that actually have worktrees. Non-git dirs, missing
+      // dirs, or repos with spawn errors are silently skipped — the panel
+      // shouldn't surface errors for dirs the user didn't explicitly target.
+      if (repo.worktrees.length > 0) {
+        const prevExpanded = oldExpandState.get(repo.gitRoot);
+        repo.isExpanded = prevExpanded !== undefined ? prevExpanded : true;
+        repos.push(repo);
+      }
+    }
+    set({ worktreeRepos: repos, worktreeLoading: false });
+  },
+
+  createWorktree: async (repoPath: string, branchName: string, baseBranch: string) => {
+    const result = await window.terminalAPI.createWorktree(repoPath, branchName, baseBranch);
+    if (result.success) {
+      await get().loadWorktrees();
+    }
+    return result;
+  },
+
+  deleteWorktree: async (repoPath: string, worktreePath: string) => {
+    const result = await window.terminalAPI.deleteWorktree(repoPath, worktreePath);
+    if (result.success) {
+      await get().loadWorktrees();
+    }
+    return result;
+  },
+
   openTabMenu: (id?: TerminalId) => {
     const targetId = id ?? get().focusedTerminalId;
     if (targetId) set({ tabMenuTerminalId: targetId });
@@ -2014,7 +2120,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
         // Sanitize cwd: skip executable paths that were incorrectly saved as cwd
         let cwd = info.cwd || '';
         if (/\.(exe|cmd|bat|com|ps1|sh|msi|dll)$/i.test(cwd) || !cwd) {
-          cwd = profile.cwd || (navigator.platform.startsWith('Win') ? 'C:\\Users' : window.platformInfo?.homeDir || '/');
+          cwd = profile.cwd || ((window as any).platformInfo?.platform === 'win32' ? 'C:\\Users' : (window as any).platformInfo?.homeDir || '/');
         }
         try {
           const { pid } = await window.terminalAPI.createPty({
@@ -2306,6 +2412,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
         terminals: updatedTerminals,
       };
     });
+    // Persist immediately — beforeunload often doesn't complete before renderer shutdown
     get().saveSession();
   },
 

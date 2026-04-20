@@ -15,8 +15,8 @@ const config: ForgeConfig = {
       const fs = require('fs-extra');
       const outDir = options.outputPaths[0];
 
-      // On macOS the app bundle lives at <name>.app/Contents/Resources/app,
-      // on other platforms it's just resources/app.
+      // On macOS, outputPaths[0] is the directory containing the .app bundle
+      // (e.g. out/tmax-darwin-arm64), not the .app itself.
       const macApp = fs.readdirSync(outDir).find((f: string) => f.endsWith('.app'));
       const appDir = macApp
         ? path.join(outDir, macApp, 'Contents', 'Resources', 'app')
@@ -26,10 +26,28 @@ const config: ForgeConfig = {
       const dest = path.join(appDir, 'node_modules', 'node-pty');
       await fs.copy(src, dest);
 
+      // Ensure all binaries are executable (NTFS doesn't preserve Unix perms)
+      const prebuildsDir = path.join(dest, 'prebuilds');
+      if (fs.existsSync(prebuildsDir)) {
+        for (const platform of fs.readdirSync(prebuildsDir)) {
+          const platformDir = path.join(prebuildsDir, platform);
+          for (const file of fs.readdirSync(platformDir)) {
+            fs.chmodSync(path.join(platformDir, file), 0o755);
+          }
+        }
+      }
+
       const napiSrc = path.join(__dirname, 'node_modules', 'node-addon-api');
       const napiDest = path.join(appDir, 'node_modules', 'node-addon-api');
       if (fs.existsSync(napiSrc)) await fs.copy(napiSrc, napiDest);
-      console.log(`Copied node-pty native module to ${appDir}`);
+
+      // chokidar is marked as external in vite.main.config.ts (native ESM),
+      // so it must be present in node_modules at runtime
+      const chokidarSrc = path.join(__dirname, 'node_modules', 'chokidar');
+      const chokidarDest = path.join(appDir, 'node_modules', 'chokidar');
+      if (fs.existsSync(chokidarSrc)) await fs.copy(chokidarSrc, chokidarDest);
+
+      console.log(`Copied native/external modules to ${appDir}`);
     },
   },
   packagerConfig: {

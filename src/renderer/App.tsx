@@ -20,6 +20,7 @@ import Settings from './components/Settings';
 import CommandPalette from './components/CommandPalette';
 import DirPanel from './components/DirPanel';
 import CopilotPanel from './components/CopilotPanel';
+import WorktreePanel from './components/WorktreePanel';
 import DiffReview from './components/DiffReview';
 import FileExplorer from './components/FileExplorer';
 import FloatingRenameInput from './components/FloatingRenameInput';
@@ -42,6 +43,7 @@ const App: React.FC = () => {
     handleDragStart,
     handleDragOver,
     handleDragEnd,
+    handleDragCancel,
     sensors,
   } = useDragTerminal();
 
@@ -56,6 +58,8 @@ const App: React.FC = () => {
         await useTerminalStore.getState().loadCopilotSessions();
         await useTerminalStore.getState().loadClaudeCodeSessions();
         if (cancelled) return;
+        // Restore FIRST so checkStaleActiveSessions sees persisted overrides
+        // and its update gets merged on top rather than being overwritten.
         if (useTerminalStore.getState().terminals.size === 0) {
           const restored = await useTerminalStore.getState().restoreSession();
           if (cancelled) return;
@@ -66,8 +70,7 @@ const App: React.FC = () => {
           // Session already active (e.g. hot-reload) — load persisted overrides
           await useTerminalStore.getState().restoreSession();
         }
-        // Check for stale active sessions (>30 days) — must run after restoreSession
-        // so sessionLifecycleOverrides are loaded before saveSession() is triggered
+        // Check for stale active sessions (>30 days) after hydration
         useTerminalStore.getState().checkStaleActiveSessions();
       } catch (err) {
         console.error('Init failed:', err);
@@ -134,8 +137,25 @@ const App: React.FC = () => {
     api.startClaudeCodeWatching?.();
 
     const store = useTerminalStore.getState;
+
+    // In-app toast on status transition to needs-attention.
+    // Edge-triggered: only fires when transitioning INTO awaitingApproval /
+    // waitingForUser, not on every update. Works for both Copilot and Claude.
+    const prevStatus = new Map<string, string>();
+    const maybeNotify = (session: CopilotSessionSummary, provider: string) => {
+      const prev = prevStatus.get(session.id);
+      prevStatus.set(session.id, session.status);
+      const attention = session.status === 'awaitingApproval' || session.status === 'waitingForUser';
+      const wasAttention = prev === 'awaitingApproval' || prev === 'waitingForUser';
+      if (!attention || wasAttention) return;
+      const label = session.status === 'awaitingApproval' ? 'needs approval' : 'waiting for input';
+      const title = session.summary || session.repository || session.id.slice(0, 8);
+      store().addToast(`${provider}: ${title} - ${label}`);
+    };
+
     const unsubCopilotUpdated = api.onCopilotSessionUpdated?.((session: CopilotSessionSummary) => {
       store().updateCopilotSession(session);
+      maybeNotify(session, 'Copilot');
     });
     const unsubCopilotAdded = api.onCopilotSessionAdded?.((session: CopilotSessionSummary) => {
       store().addCopilotSession(session);
@@ -145,6 +165,7 @@ const App: React.FC = () => {
     });
     const unsubClaudeUpdated = api.onClaudeCodeSessionUpdated?.((session: CopilotSessionSummary) => {
       store().updateClaudeCodeSession(session);
+      maybeNotify(session, 'Claude');
     });
     const unsubClaudeAdded = api.onClaudeCodeSessionAdded?.((session: CopilotSessionSummary) => {
       store().addClaudeCodeSession(session);
@@ -176,6 +197,7 @@ const App: React.FC = () => {
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
     >
       <div className={`app-shell tab-bar-${tabBarPosition}`}>
         {!hideTabBar && tabBarPosition === 'top' && <TabBar />}
@@ -184,6 +206,7 @@ const App: React.FC = () => {
           <div className="main-area">
             <DirPanel />
             <CopilotPanel />
+            <WorktreePanel />
             <FileExplorer />
             <div className="layout-area">
               <TilingLayout />

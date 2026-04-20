@@ -62,6 +62,7 @@ const CommandPalette: React.FC = () => {
         }});
       }},
       { id: 'copilotSessions', label: 'Copilot Sessions Panel', shortcut: 'Ctrl+Shift+C', action: () => store().toggleCopilotPanel() },
+      { id: 'worktreePanel', label: 'Git Worktree Panel', shortcut: 'Ctrl+Shift+T', action: () => store().toggleWorktreePanel() },
       { id: 'dirPicker', label: 'Go to Directory (Favorites & Recent)', shortcut: 'Ctrl+Shift+D', action: () => store().toggleDirPicker() },
       { id: 'colorizeAllTabs', label: 'Toggle Tab Colors', shortcut: 'Ctrl+Shift+O', action: () => store().colorizeAllTabs() },
       { id: 'toggleTabBar', label: 'Toggle Tab Bar: Top / Left', action: () => store().toggleTabBarPosition() },
@@ -81,11 +82,16 @@ const CommandPalette: React.FC = () => {
       { id: 'checkForUpdates', label: 'Check for Updates', action: () => {
         window.terminalAPI.checkForUpdates();
       }},
+      { id: 'openDiagLog', label: 'Open Diagnostics Log', action: () => {
+        window.terminalAPI.getDiagLogPath().then((p: string) => (window.terminalAPI as any).openPath(p));
+      }},
       { id: 'reportIssue', label: 'Report Issue', action: () => {
         const version = document.querySelector('.status-dim')?.textContent?.replace('v', '') || 'unknown';
         const platform = navigator.platform;
-        const body = encodeURIComponent(`**Version:** ${version}\n**Platform:** ${platform}\n\n**Description:**\n\n\n**Steps to reproduce:**\n1. \n\n**Expected behavior:**\n\n**Actual behavior:**\n`);
-        window.open(`https://github.com/InbarR/tmax/issues/new?body=${body}`, '_blank');
+        const issueBody = `**Version:** ${version}\n**Platform:** ${platform}\n\n**Description:**\n\n\n**Steps to reproduce:**\n1. \n\n**Expected behavior:**\n\n**Actual behavior:**\n`;
+        window.terminalAPI.clipboardWrite(issueBody);
+        window.open(`https://github.com/InbarR/tmax/issues/new?body=${encodeURIComponent(issueBody)}`, '_blank');
+        store().addToast('Issue template copied to clipboard. If GitHub blocks you (EMU account), open in a private/incognito window.');
       }},
       { id: 'editConfig', label: 'Open Settings JSON File', action: () => {
         // Open the config JSON in the default editor

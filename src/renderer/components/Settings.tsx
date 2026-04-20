@@ -447,6 +447,13 @@ const AppearanceSettings: React.FC = () => {
           })()}
         </div>
       </SettingRow>
+      <SettingRow label="Hide Tab Close Buttons" description="Hide the ✕ button on tabs to avoid accidentally closing them">
+        <label className="toggle-switch">
+          <input type="checkbox" checked={(config as any).hideTabCloseButtons === true}
+            onChange={() => useTerminalStore.getState().toggleHideTabCloseButtons()} />
+          <span className="toggle-track" />
+        </label>
+      </SettingRow>
       <SettingRow label="Default Tab Color" description="Background tint for all terminals without a custom color">
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <input type="color" className="theme-color-picker"

@@ -488,9 +488,14 @@ html.transparency-active .input-dialog {
   position: relative;
   display: flex;
   flex-direction: column;
+  /* Isolate layout/paint: terminal updates don't trigger reflows of siblings */
+  contain: layout style;
+}
+
+/* Crisper terminal text on HiDPI displays — prevents subpixel fringing */
+.xterm {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  contain: layout style;
 }
 
 .terminal-panel.focused {
@@ -599,10 +604,11 @@ html.transparency-active .input-dialog {
   opacity: 1;
 }
 
+/* Background color comes from the pane's tab color (set inline in
+   TerminalPanel.tsx) with a higher alpha when focused. */
 .terminal-panel.focused .terminal-pane-title {
-  background: rgba(166, 227, 161, 0.3);
-  border-bottom-color: rgba(166, 227, 161, 0.4);
   opacity: 1;
+  border-bottom-color: rgba(255, 255, 255, 0.15);
 }
 
 .terminal-diff-btn {
@@ -628,6 +634,30 @@ html.transparency-active .input-dialog {
   color: var(--focus-border);
   border-color: var(--focus-border);
   background: rgba(137, 180, 250, 0.1);
+}
+
+.terminal-pane-dormant-btn {
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--text-secondary);
+  font-size: 9px;
+  padding: 1px 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.terminal-panel:hover .terminal-pane-dormant-btn {
+  opacity: 0.5;
+}
+
+.terminal-pane-dormant-btn:hover {
+  opacity: 1 !important;
+  color: #f9e2af;
+  border-color: #f9e2af;
+  background: rgba(249, 226, 175, 0.1);
 }
 
 /* ── Terminal diagnostics overlay ─────────────────────────────────── */
@@ -747,16 +777,16 @@ html.transparency-active .input-dialog {
 }
 
 .xterm .xterm-viewport::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15) !important;
+  background: rgba(255, 255, 255, 0.35) !important;
   border-radius: 4px;
 }
 
 .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.35) !important;
+  background: rgba(255, 255, 255, 0.55) !important;
 }
 
 .xterm .xterm-viewport::-webkit-scrollbar-track {
-  background: transparent !important;
+  background: rgba(255, 255, 255, 0.03) !important;
 }
 
 .terminal-panel .xterm-container .xterm {
@@ -824,6 +854,7 @@ html.transparency-active .input-dialog {
   inset: 0;
   pointer-events: none;
 }
+
 
 /* ===== Floating Layer ===== */
 .floating-layer {
@@ -2177,6 +2208,48 @@ select.settings-input {
   font-weight: 600;
 }
 
+/* Slide toggle switch */
+.toggle-switch {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+.toggle-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 11px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  transition: background 0.2s, border-color 0.2s;
+}
+.toggle-switch input:checked + .toggle-track {
+  background: var(--focus-border);
+  border-color: var(--focus-border);
+}
+.toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  transition: transform 0.2s, background 0.2s;
+}
+.toggle-switch input:checked + .toggle-track::after {
+  transform: translateX(18px);
+  background: var(--bg-primary);
+}
+
 /* Font face combo box */
 .font-combobox {
   position: relative;
@@ -3500,3 +3573,289 @@ select.settings-input {
   outline: none;
   box-sizing: border-box;
 }
+
+/* ===== Worktree Panel ===== */
+.wt-panel {
+  position: relative;
+  height: 100%;
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.wt-panel-resize {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+}
+
+.wt-panel-resize:hover,
+.wt-panel.resizing .wt-panel-resize {
+  background: var(--accent-color, #89b4fa);
+  opacity: 0.5;
+}
+
+.wt-panel.resizing {
+  user-select: none;
+}
+
+.wt-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.wt-panel-header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.wt-panel-close,
+.wt-panel-refresh {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.wt-panel-close:hover,
+.wt-panel-refresh:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.wt-panel-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.wt-panel-empty {
+  padding: 16px 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.wt-repo-group {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.wt-repo-group:last-child {
+  border-bottom: none;
+}
+
+.wt-repo-header {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  cursor: pointer;
+  gap: 4px;
+  user-select: none;
+}
+
+.wt-repo-header:hover {
+  background: rgba(137, 180, 250, 0.06);
+}
+
+.wt-repo-chevron {
+  font-size: 10px;
+  width: 14px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.wt-repo-header.expanded .wt-repo-chevron {
+  transform: rotate(0deg);
+}
+
+.wt-repo-name {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wt-repo-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.wt-worktree-list {
+  padding: 0 8px 8px 8px;
+}
+
+.wt-worktree-item {
+  padding: 8px 10px;
+  margin-top: 4px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--accent-color, #89b4fa);
+  transition: border-color 0.2s ease;
+}
+
+.wt-worktree-item:hover {
+  border-color: var(--focus-border);
+}
+
+.wt-worktree-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wt-worktree-branch {
+  color: var(--accent-color, #89b4fa);
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 12px;
+}
+
+.wt-worktree-path {
+  color: var(--text-secondary);
+  font-size: 10px;
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wt-worktree-time {
+  color: var(--text-secondary);
+  opacity: 0.75;
+  font-size: 10px;
+  margin-top: 2px;
+}
+
+.wt-worktree-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.wt-action-btn {
+  padding: 3px 8px;
+  font-size: 11px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.wt-action-btn svg { display: block; }
+
+.wt-action-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--focus-border);
+  background: rgba(137, 180, 250, 0.08);
+}
+
+.wt-action-danger:hover {
+  color: #e94560;
+  border-color: #e94560;
+  background: rgba(233, 69, 96, 0.08);
+}
+
+.wt-action-primary {
+  background: var(--accent-color, #89b4fa);
+  color: var(--bg-primary);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.wt-action-primary:hover {
+  opacity: 0.9;
+  background: var(--accent-color, #89b4fa);
+  color: var(--bg-primary);
+}
+
+/* Create Worktree Modal */
+.wt-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.wt-modal {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  width: 340px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.wt-modal h3 {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.wt-modal-label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.wt-modal-input {
+  width: 100%;
+  padding: 6px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 12px;
+  margin-bottom: 12px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.wt-modal-input:focus {
+  border-color: var(--focus-border);
+}
+
+.wt-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+

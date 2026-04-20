@@ -9,10 +9,41 @@ import { isMac } from '../utils/platform';
 import type { AppConfig } from '../state/types';
 import '@xterm/xterm/css/xterm.css';
 
+/**
+ * Extract a URL from HTML clipboard content when the content is essentially
+ * a single hyperlink (e.g. ADO "Copy to clipboard" for PR titles).
+ * Returns the href if found, null otherwise.
+ */
+function extractLinkFromHtml(html: string): string | null {
+  if (!html) return null;
+  // Match all <a href="..."> tags in the HTML
+  const linkPattern = /<a\s[^>]*href=["']([^"']+)["'][^>]*>/gi;
+  const matches: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = linkPattern.exec(html)) !== null) {
+    matches.push(m[1]);
+  }
+  // Only extract when the HTML contains exactly one link
+  if (matches.length === 1) return matches[0];
+  return null;
+}
+
 function hexToTerminalRgba(hex: string, alpha: number): string {
   const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   if (!m) return hex;
   return `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${alpha})`;
+}
+
+/**
+ * Force xterm's viewport to sync its native scroll area with the buffer.
+ * Without this, the native scrollbar may show no thumb even though there
+ * is scrollback content (wheel scrolling still works because xterm handles
+ * it in JS, but the scrollbar indicator is absent).
+ */
+function syncViewportScrollArea(term: Terminal): void {
+  try {
+    (term as any)._core?.viewport?.syncScrollArea();
+  } catch { /* viewport may not be ready */ }
 }
 
 const WSL_PROMPT_DEBOUNCE_MS = 200;
@@ -151,9 +182,9 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
   const config = useTerminalStore((s) => s.config);
   const focusedTerminalId = useTerminalStore((s) => s.focusedTerminalId);
   const fontSize = useTerminalStore((s) => s.fontSize);
-  // Track overlay state to re-focus xterm when overlays close
+  // Track modal overlay state — sidebars (copilot, dirs, explorer) should NOT block terminal focus
   const anyOverlayOpen = useTerminalStore((s) =>
-    s.showCommandPalette || s.showSettings || s.showSwitcher || s.showShortcuts || s.showCopilotPanel || s.showDirPicker
+    s.showCommandPalette || s.showSettings || s.showSwitcher || s.showShortcuts
   );
   const aiResumeCommandRef = useRef<string>('');
   const aiSessionStartedRef = useRef(false);
@@ -165,16 +196,36 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
     useTerminalStore.getState().setFocus(terminalId);
     diagRef.current.focusEventCount++;
     diagRef.current.lastFocusTime = Date.now();
+    window.terminalAPI.diagLog('renderer:focus-gained', { terminalId });
+    // Re-focus xterm textarea — the store won't trigger a re-focus
+    // if this panel is already the focused one (isFocused won't change).
+    // Skip when textarea already has DOM focus: a redundant term.focus()
+    // in the same frame corrupts xterm's cursor-blink state and paints a
+    // stale cursor (#41).
     try {
-      terminalRef.current?.focus();
       const textarea = containerRef.current?.querySelector('textarea');
-      if (textarea && document.activeElement !== textarea) {
-        (textarea as HTMLElement).focus();
+      if (!textarea || document.activeElement !== textarea) {
+        terminalRef.current?.focus();
       }
     } catch { /* terminal may be disposed */ }
+    // Ensure DEC focus reporting reaches the PTY even if xterm.js lost
+    // its internal focus-reporting state (e.g. after a pane split/resize).
+    // Without this, Copilot CLI stays in isFocused=false and drops input.
+    // Only inject when actually switching between two terminals — not on
+    // first focus (prevFocused=null) to avoid stray sequences.
+    // Guard: skip the manual injection when xterm's textarea already has
+    // DOM focus — in that case xterm.js sends the DEC sequence natively
+    // and a second one causes duplicate cursors (#41).
     if (prevFocused && prevFocused !== terminalId) {
       window.terminalAPI.writePty(prevFocused, '\x1b[O');
-      window.terminalAPI.writePty(terminalId, '\x1b[I');
+      window.terminalAPI.diagLog('renderer:focus-inject-out', { terminalId: prevFocused });
+      const textarea = containerRef.current?.querySelector('textarea');
+      if (!textarea || document.activeElement !== textarea) {
+        requestAnimationFrame(() => {
+          window.terminalAPI.writePty(terminalId, '\x1b[I');
+          window.terminalAPI.diagLog('renderer:focus-inject-in', { terminalId });
+        });
+      }
     }
   }, [terminalId]);
 
@@ -370,16 +421,18 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
       scrollback: termConfig?.scrollback ?? 5000,
       cursorStyle: termConfig?.cursorStyle ?? 'block',
       cursorBlink: termConfig?.cursorBlink ?? true,
-      drawBoldTextInBrightColors: true,
-      minimumContrastRatio: 1,
+      cursorInactiveStyle: 'none',
       allowTransparency: bgOpacity < 1,
       allowProposedApi: true,
     });
 
     const fitAddon = new FitAddon();
+    // Custom URL regex: xterm.js default excludes | (pipe) from URLs, but many
+    // dev tools emit URLs containing pipes (e.g. query params with | delimiters).
+    const urlRegex = /(https?|HTTPS?):[/]{2}[^\s"'!*(){}\\\^<>`]*[^\s"':,.!?{}\\\^~\[\]`()<>]/;
     const webLinksAddon = new WebLinksAddon((_event, uri) => {
       window.open(uri, '_blank');
-    });
+    }, { urlRegex });
     const searchAddon = new SearchAddon();
 
     term.loadAddon(fitAddon);
@@ -419,7 +472,9 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
             window.terminalAPI.writePty(terminalId, filePath);
           });
         } else {
-          const text = window.terminalAPI.clipboardRead();
+          const html = window.terminalAPI.clipboardReadHTML();
+          const linkUrl = extractLinkFromHtml(html);
+          const text = linkUrl || window.terminalAPI.clipboardRead();
           if (text) window.terminalAPI.writePty(terminalId, text);
         }
         return false;
@@ -451,13 +506,39 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
           return false;
         }
       }
-      // Ctrl+Enter / Shift+Enter: send win32-input-mode key events
-      // Format: CSI Vk;Sc;Uc;Kd;Cs;Rc _ (VK_RETURN=13, ScanCode=28)
-      // ConPTY processes these when an app has enabled win32-input-mode
-      if (event.key === 'Enter' && (event.ctrlKey || event.shiftKey) && !event.altKey) {
-        const cs = (event.ctrlKey ? 8 : 0) | (event.shiftKey ? 16 : 0);
-        const uc = event.ctrlKey ? 10 : 13;
-        window.terminalAPI.writePty(terminalId, `\x1b[13;28;${uc};1;${cs};1_`);
+      // Log every Enter press so we can diagnose "sometimes works" intermittency
+      if (event.key === 'Enter' || event.code === 'Enter' || event.code === 'NumpadEnter') {
+        window.terminalAPI.diagLog('renderer:enter-keydown', {
+          terminalId,
+          key: event.key,
+          code: event.code,
+          ctrl: event.ctrlKey,
+          shift: event.shiftKey,
+          alt: event.altKey,
+          meta: event.metaKey,
+          repeat: event.repeat,
+        });
+      }
+      // Ctrl+Enter / Shift+Enter: match what Windows Terminal sends - full
+      // win32-input-mode sequence where Uc is the character the key *would*
+      // produce (always CR=13 for Enter, regardless of modifiers), and Cs
+      // carries the modifier bits. Apps like Claude Code and Copilot CLI use
+      // the Cs field to distinguish Shift+Enter (insert newline) from Enter
+      // (submit). The earlier `Uc=10` variant for Shift+Enter confused apps.
+      // Format: CSI Vk;Sc;Uc;Kd;Cs;Rc _ (VK_RETURN=13, ScanCode=28, Kd=down)
+      // Use event.code so NumpadEnter is also caught (event.key is still 'Enter' but
+      // different layouts/IMEs can change event.key).
+      const isEnterKey = event.key === 'Enter' || event.code === 'Enter' || event.code === 'NumpadEnter';
+      if (isEnterKey && (event.ctrlKey || event.shiftKey) && !event.altKey) {
+        // CSI-u / kitty keyboard protocol format: `CSI keycode ; modifiers u`
+        // Shift+Enter = \x1b[13;2u, Ctrl+Enter = \x1b[13;5u, Ctrl+Shift+Enter = \x1b[13;6u.
+        // Verified that Claude Code interprets \x1b[13;2u as "insert newline in
+        // input" even on Windows via ConPTY. win32-input-mode sequences and
+        // raw LF don't work reliably there because the child app has to have
+        // opted in to them.
+        const modBits = 1 + (event.shiftKey ? 1 : 0) + (event.altKey ? 2 : 0) + (event.ctrlKey ? 4 : 0);
+        window.terminalAPI.writePty(terminalId, `\x1b[13;${modBits}u`);
+        window.terminalAPI.diagLog('renderer:enter-sent', { terminalId, path: 'csi-u', mod: modBits });
         return false;
       }
       return true;
@@ -492,6 +573,7 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
     requestAnimationFrame(() => {
       try {
         fitAddon.fit();
+        syncViewportScrollArea(term);
       } catch {
         // Container may not be sized yet
       }
@@ -713,6 +795,7 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
       resizeTimer = setTimeout(() => {
         try {
           fitAddon.fit();
+          syncViewportScrollArea(term);
           const { cols, rows } = term;
           window.terminalAPI.resizePty(terminalId, cols, rows);
         } catch {
@@ -721,20 +804,6 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
       }, 30);
     });
     resizeObserver.observe(containerRef.current);
-
-    // Ctrl+mouse wheel zoom
-    const handleWheel = (e: WheelEvent) => {
-      if (e.ctrlKey) {
-        e.preventDefault();
-        const store = useTerminalStore.getState();
-        if (e.deltaY < 0) {
-          store.zoomIn();
-        } else {
-          store.zoomOut();
-        }
-      }
-    };
-    containerRef.current.addEventListener('wheel', handleWheel, { passive: false });
 
     // Right-click: copy if selection, paste if no selection
     const handleContextMenu = (e: MouseEvent) => {
@@ -750,7 +819,9 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
             window.terminalAPI.writePty(terminalId, filePath);
           });
         } else {
-          const text = window.terminalAPI.clipboardRead();
+          const html = window.terminalAPI.clipboardReadHTML();
+          const linkUrl = extractLinkFromHtml(html);
+          const text = linkUrl || window.terminalAPI.clipboardRead();
           if (text) window.terminalAPI.writePty(terminalId, text);
         }
       }
@@ -771,9 +842,11 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
       // listener accumulation across HMR / layout-induced remounts.
       unsubscribePtyData();
       unsubscribePtyExit();
-      resizeObserver.disconnect();
-      if (resizeTimer) clearTimeout(resizeTimer);
-      containerEl.removeEventListener('wheel', handleWheel);
+      wslPromptCleanupRef.current?.();
+      if (textareaEl) {
+        textareaEl.removeEventListener('focus', handleFocus);
+        textareaEl.removeEventListener('blur', handleBlur);
+      }
       containerEl.removeEventListener('contextmenu', handleContextMenu, true);
 
       // Remove textarea handlers BEFORE stashing to prevent stale listeners
@@ -801,6 +874,7 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
           terminalRef.current.options.fontFamily = configFontFamily;
         }
         fitAddonRef.current.fit();
+        syncViewportScrollArea(terminalRef.current);
         const { cols, rows } = terminalRef.current;
         window.terminalAPI.resizePty(terminalId, cols, rows);
       }
@@ -828,12 +902,43 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
     return () => clearInterval(id);
   }, []);
 
+  // Refit all terminals when view mode changes (focus↔grid↔split).
+  // The ResizeObserver may fire before the DOM has fully settled, leaving
+  // xterm's viewport scrollbar stale. A delayed refit fixes this.
+  const viewMode = useTerminalStore((s) => s.viewMode);
+  useEffect(() => {
+    if (!fitAddonRef.current || !terminalRef.current) return;
+    const timer = setTimeout(() => {
+      try {
+        fitAddonRef.current?.fit();
+        if (terminalRef.current) {
+          syncViewportScrollArea(terminalRef.current);
+          const { cols, rows } = terminalRef.current;
+          window.terminalAPI.resizePty(terminalId, cols, rows);
+        }
+      } catch { /* terminal may be disposed */ }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [viewMode, terminalId]);
+
   // Programmatic focus when this terminal becomes focused in the store,
   // or when overlays close (to restore DEC focus reporting for Copilot CLI)
   useEffect(() => {
     try {
       if (isFocused && !anyOverlayOpen && terminalRef.current) {
-        terminalRef.current.focus();
+        // Skip redundant focus() when xterm's textarea already has DOM focus —
+        // handleFocus() already called term.focus() synchronously on click.
+        // A second focus() in the same frame leaves xterm's cursor-blink state
+        // machine inconsistent and paints a stale cursor (#41).
+        const textarea = containerRef.current?.querySelector('textarea');
+        const alreadyFocused = textarea && document.activeElement === textarea;
+        if (!alreadyFocused) {
+          terminalRef.current.focus();
+          // Force a cursor-row redraw so any stale cursor glyph from the
+          // previous frame is cleared (#41).
+          const cursorY = terminalRef.current.buffer.active.cursorY;
+          try { terminalRef.current.refresh(cursorY, cursorY); } catch { /* ignore */ }
+        }
         // Immediately refit in case the container size changed (e.g. focus
         // mode shows this pane at full size while it was previously hidden at
         // its split-ratio size).  Using rAF so the DOM layout has settled.
@@ -842,6 +947,7 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
             try {
               fitAddonRef.current?.fit();
               if (terminalRef.current) {
+                syncViewportScrollArea(terminalRef.current);
                 const { cols, rows } = terminalRef.current;
                 window.terminalAPI.resizePty(terminalId, cols, rows);
               }
@@ -874,6 +980,7 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
       try {
         if (fitAddonRef.current && terminalRef.current) {
           fitAddonRef.current.fit();
+          syncViewportScrollArea(terminalRef.current);
           const { cols, rows } = terminalRef.current;
           window.terminalAPI.resizePty(terminalId, cols, rows);
         }
@@ -937,7 +1044,14 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
       data-terminal-id={terminalId}
       onMouseDownCapture={(e) => {
         if (!isFocused) {
-          e.stopPropagation();
+          // Only suppress mouse events targeting the xterm canvas — this prevents
+          // mouse-reporting apps (Claude CLI) from shifting focus, while still
+          // letting mousedown reach the viewport element for scroll targeting (#48).
+          const target = e.target as HTMLElement;
+          if (target.tagName === 'CANVAS' || target.classList.contains('xterm-cursor-layer')) {
+            e.stopPropagation();
+            window.terminalAPI.diagLog('renderer:pane-switch-click-suppressed', { terminalId });
+          }
         }
         handleFocus();
       }}
@@ -980,7 +1094,10 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
         </div>
       )}
       {title && (
-        <div className="terminal-pane-title">
+        <div
+          className="terminal-pane-title"
+          style={bgTint ? { background: bgTint + (isFocused ? '66' : '33') } : undefined}
+        >
           <div
             className="status-dot-container"
             onClick={(e) => {
@@ -1033,6 +1150,14 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
               useTerminalStore.getState().openDiffReview(terminalId);
             }}
           >Diff</button>
+          <button
+            className="terminal-pane-dormant-btn"
+            title="Hide pane (dormant)"
+            onClick={(e) => {
+              e.stopPropagation();
+              useTerminalStore.getState().moveToDormant(terminalId);
+            }}
+          >&#128065;</button>
         </div>
       )}
       {showDiag && <DiagnosticsOverlay terminalId={terminalId} diagRef={diagRef} mainDiag={mainDiagRef.current} logPath={logPathRef.current} onClose={() => setShowDiag(false)} />}

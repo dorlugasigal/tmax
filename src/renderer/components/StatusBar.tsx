@@ -77,6 +77,15 @@ const StatusBar: React.FC = () => {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfoState | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [shownVersion, setShownVersion] = useState<string>('');
+  const [showReportModal, setShowReportModal] = useState(false);
+
+  const submitReport = () => {
+    const issueBody = `**Version:** ${appVersion}\n**Platform:** ${navigator.platform}\n\n**Description:**\n\n\n**Steps to reproduce:**\n1. \n\n**Expected behavior:**\n\n**Actual behavior:**\n`;
+    const url = `https://github.com/InbarR/tmax/issues/new?body=${encodeURIComponent(issueBody)}`;
+    window.terminalAPI.clipboardWrite(issueBody);
+    window.open(url, '_blank');
+    setShowReportModal(false);
+  };
 
   useEffect(() => {
     window.terminalAPI.getAppVersion().then(setAppVersion);
@@ -144,6 +153,13 @@ const StatusBar: React.FC = () => {
           >
             &#129302; Sessions
           </button>
+          <button
+            className="status-mode-btn"
+            onClick={() => useTerminalStore.getState().toggleWorktreePanel()}
+            title={formatKeyForPlatform("Git Worktrees (Ctrl+Shift+T)")}
+          >
+            &#127793; Worktrees
+          </button>
           {focused ? (
             <>
               <span className="status-indicator" />
@@ -210,14 +226,18 @@ const StatusBar: React.FC = () => {
             <span className="status-dim">v{appVersion}</span>
           )}
           <button
-            className="status-help-btn"
-            onClick={() => {
-              const body = encodeURIComponent(`**Version:** ${appVersion}\n**Platform:** ${navigator.platform}\n\n**Description:**\n\n\n**Steps to reproduce:**\n1. \n\n**Expected behavior:**\n\n**Actual behavior:**\n`);
-              window.open(`https://github.com/InbarR/tmax/issues/new?body=${body}`, '_blank');
-            }}
-            title="Report an issue"
+            className="status-mode-btn"
+            onClick={() => window.terminalAPI.getDiagLogPath().then((p: string) => (window.terminalAPI as any).openPath(p))}
+            title="Open diagnostics log"
           >
-            &#128027;
+            &#129658; Logs
+          </button>
+          <button
+            className="status-mode-btn"
+            onClick={() => setShowReportModal(true)}
+            title="Report an issue (opens GitHub)"
+          >
+            &#9888; Report
           </button>
           <button
             className="status-help-btn"
@@ -230,6 +250,26 @@ const StatusBar: React.FC = () => {
       </div>
       {showUpdateModal && updateInfo && (
         <UpdateModal info={updateInfo} appVersion={appVersion} onClose={() => setShowUpdateModal(false)} />
+      )}
+      {showReportModal && (
+        <div className="update-modal-overlay" onClick={() => setShowReportModal(false)}>
+          <div className="update-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="update-modal-header">
+              <h2>Report an Issue</h2>
+              <button className="update-modal-close" onClick={() => setShowReportModal(false)}>&times;</button>
+            </div>
+            <div className="update-modal-notes">
+              <p>Clicking <strong>Open GitHub</strong> will open the new-issue page in your browser. A prefilled issue template is also copied to your clipboard.</p>
+              <p style={{ marginTop: '12px', color: 'var(--yellow)' }}>
+                <strong>Important:</strong> Use your personal GitHub account, not your org/EMU account. EMU accounts are often blocked from commenting on public repos - if the page doesn't load, paste the template into a private/incognito window.
+              </p>
+            </div>
+            <div className="update-modal-actions">
+              <button className="update-modal-btn primary" onClick={submitReport}>Open GitHub</button>
+              <button className="update-modal-btn" onClick={() => setShowReportModal(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
