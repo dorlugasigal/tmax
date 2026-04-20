@@ -530,6 +530,10 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
       // different layouts/IMEs can change event.key).
       const isEnterKey = event.key === 'Enter' || event.code === 'Enter' || event.code === 'NumpadEnter';
       if (isEnterKey && (event.ctrlKey || event.shiftKey) && !event.altKey) {
+        // Prevent the browser's keypress event from firing. Without this,
+        // xterm's _keyPress handler would also send \r (Enter) because
+        // _keyDownHandled is not set when the custom handler returns false.
+        event.preventDefault();
         // AI sessions (Copilot CLI, Claude Code): send ESC+CR (\x1b\r), the
         // same sequence Option+Enter produces natively. CLI line-editors
         // (e.g. readline, rustyline) interpret this as "insert newline".
