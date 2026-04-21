@@ -8,6 +8,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { useTerminalStore } from '../state/terminal-store';
+import { getTerminalEntry } from '../terminal-registry';
 import type { SplitDirection } from '../state/types';
 
 interface UseDragTerminalResult {
@@ -104,11 +105,30 @@ export function useDragTerminal(): UseDragTerminalResult {
 
     setActiveId(null);
     store.setDragging(false);
+
+    // After drop, dnd-kit leaves DOM focus on the drag-activator element (the
+    // tab button), so the focused xterm's textarea can't receive keystrokes.
+    // Our blur handler's refocus guard sees a non-body activeElement outside
+    // the terminal container and bails, leaving the pane "stuck" until a
+    // view-mode toggle re-creates the DOM. Explicitly re-focusing xterm here
+    // closes that gap.
+    requestAnimationFrame(() => {
+      const focusedId = useTerminalStore.getState().focusedTerminalId;
+      if (!focusedId) return;
+      const entry = getTerminalEntry(focusedId);
+      try { entry?.terminal.focus(); } catch { /* disposed */ }
+    });
   }, []);
 
   const handleDragCancel = useCallback(() => {
     setActiveId(null);
     useTerminalStore.getState().setDragging(false);
+    requestAnimationFrame(() => {
+      const focusedId = useTerminalStore.getState().focusedTerminalId;
+      if (!focusedId) return;
+      const entry = getTerminalEntry(focusedId);
+      try { entry?.terminal.focus(); } catch { /* disposed */ }
+    });
   }, []);
 
   return {
