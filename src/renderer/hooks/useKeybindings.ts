@@ -70,6 +70,7 @@ const DEFAULT_BINDINGS: Record<string, string> = {
   'Ctrl+Shift+ArrowLeft': 'moveLeft',
   'Ctrl+Shift+ArrowUp': 'moveUp',
   'Ctrl+=': 'zoomIn',
+  'Ctrl+Shift++': 'zoomIn', // User presses Ctrl and the physical + key (which requires Shift on US)
   'Ctrl+-': 'zoomOut',
   'Ctrl+0': 'zoomReset',
   'Ctrl+Shift+F': 'toggleFocusMode',

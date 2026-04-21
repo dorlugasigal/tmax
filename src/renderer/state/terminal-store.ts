@@ -1718,17 +1718,19 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   },
 
   zoomIn: () => {
-    const { fontSize, config } = get();
+    const { fontSize } = get();
     const next = Math.min(fontSize + 1, 32);
     set({ fontSize: next });
-    if (config) get().updateConfig({ terminal: { ...config.terminal, fontSize: next } } as any);
+    // Intentionally not persisting to config.terminal.fontSize: that field is
+    // the user-set baseline (Settings dialog) and the denominator of the
+    // zoom % shown in the status bar. Writing zoom back there would make the
+    // ratio always 1.0 → the status bar would be stuck at 100%.
   },
 
   zoomOut: () => {
-    const { fontSize, config } = get();
+    const { fontSize } = get();
     const next = Math.max(fontSize - 1, 8);
     set({ fontSize: next });
-    if (config) get().updateConfig({ terminal: { ...config.terminal, fontSize: next } } as any);
   },
 
   zoomReset: () => {
