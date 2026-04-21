@@ -1637,6 +1637,24 @@ html.transparency-active .input-dialog {
   border-color: var(--focus-border);
 }
 
+.status-mode-btn.status-broadcast-active {
+  background: rgba(243, 139, 168, 0.18);
+  border-color: rgba(243, 139, 168, 0.8);
+  color: #f38ba8;
+  font-weight: 600;
+}
+
+.status-mode-btn.status-broadcast-active:hover {
+  background: rgba(243, 139, 168, 0.28);
+}
+
+/* Broadcast mode pane indicator: when broadcast is on, mark all tiled panes
+   with a subtle red outline so users can't miss that their keystrokes are
+   going everywhere. */
+body.broadcast-on .terminal-panel {
+  box-shadow: inset 0 0 0 1px rgba(243, 139, 168, 0.45);
+}
+
 .status-help-btn {
   width: 18px;
   height: 18px;

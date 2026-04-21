@@ -516,6 +516,7 @@ interface TerminalStore {
   hideTabCloseButtons: boolean;
   renamingTerminalId: TerminalId | null;
   viewMode: 'split' | 'focus' | 'grid';
+  broadcastMode: boolean; // when true, typing in any pane is sent to all tiled panes
   gridColumns: number; // 0 = auto (sqrt-based), 1..N = fixed column count
   preGridRoot: LayoutNode | null; // saved layout before entering grid mode
   selectedTerminalIds: Record<TerminalId, true>;
@@ -592,6 +593,7 @@ interface TerminalStore {
   setTerminalOpacity: (opacity: number) => void;
   startRenaming: (id: TerminalId | null) => void;
   toggleViewMode: () => void;
+  toggleBroadcastMode: () => void;
   toggleSelectTerminal: (id: TerminalId) => void;
   clearSelection: () => void;
   gridSelectedTabs: (ids: TerminalId[]) => void;
@@ -711,6 +713,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   hideTabCloseButtons: false,
   renamingTerminalId: null,
   viewMode: 'grid' as 'split' | 'focus' | 'grid',
+  broadcastMode: false,
   gridColumns: 0,
   preGridRoot: null as LayoutNode | null,
   selectedTerminalIds: {} as Record<TerminalId, true>,
@@ -1607,6 +1610,10 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
         layout: { ...layout, tilingRoot: gridRoot },
       });
     }
+  },
+
+  toggleBroadcastMode: () => {
+    set((s) => ({ broadcastMode: !s.broadcastMode }));
   },
 
   toggleSelectTerminal: (id: TerminalId) => {

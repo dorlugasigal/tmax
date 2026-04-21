@@ -388,12 +388,20 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ terminalId }) => {
       }
     });
 
-    // Write data to PTY when user types
+    // Write data to PTY when user types. When broadcast mode is on, the same
+    // bytes are sent to every tiled pane (tmux synchronize-panes style).
     const dataDisposable = term.onData((data) => {
       diagRef.current.keystrokeCount++;
       diagRef.current.lastKeystrokeTime = Date.now();
       window.terminalAPI.diagLog('renderer:keystroke', { terminalId, bytes: data.length });
-      window.terminalAPI.writePty(terminalId, data);
+      const state = useTerminalStore.getState();
+      if (state.broadcastMode) {
+        for (const [id, t] of state.terminals) {
+          if (t.mode === 'tiled') window.terminalAPI.writePty(id, data);
+        }
+      } else {
+        window.terminalAPI.writePty(terminalId, data);
+      }
     });
 
     // Receive data from PTY — batch writes via rAF to avoid saturating the

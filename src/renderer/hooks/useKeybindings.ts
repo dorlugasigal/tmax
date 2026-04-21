@@ -74,6 +74,7 @@ const DEFAULT_BINDINGS: Record<string, string> = {
   'Ctrl+-': 'zoomOut',
   'Ctrl+0': 'zoomReset',
   'Ctrl+Shift+F': 'toggleFocusMode',
+  'Ctrl+Shift+A': 'toggleBroadcastMode',
   'Ctrl+Shift+H': 'toggleDormant',
   'Ctrl+Shift+E': 'equalizeLayout',
   'Ctrl+,': 'openSettings',
@@ -237,6 +238,9 @@ function dispatchAction(action: string): void {
       break;
     case 'toggleFocusMode':
       store.toggleViewMode();
+      break;
+    case 'toggleBroadcastMode':
+      store.toggleBroadcastMode();
       break;
     case 'toggleDormant':
       if (focusedId) {

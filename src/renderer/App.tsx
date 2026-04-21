@@ -33,6 +33,13 @@ const App: React.FC = () => {
   const terminals = useTerminalStore((s) => s.terminals);
   const draggedTerminalId = useTerminalStore((s) => s.draggedTerminalId);
   const showShortcuts = useTerminalStore((s) => s.showShortcuts);
+  const broadcastMode = useTerminalStore((s) => s.broadcastMode);
+
+  // Toggle a body class so CSS can add a red outline to all terminal panes
+  // while broadcast is on.
+  useEffect(() => {
+    document.body.classList.toggle('broadcast-on', broadcastMode);
+  }, [broadcastMode]);
   const showCommandPalette = useTerminalStore((s) => s.showCommandPalette);
   const tabBarPosition = useTerminalStore((s) => s.tabBarPosition);
   const hideTabBar = useTerminalStore((s) => s.hideTabTitles);

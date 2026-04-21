@@ -113,6 +113,7 @@ const StatusBar: React.FC = () => {
   const fontSize = useTerminalStore((s) => s.fontSize);
   const config = useTerminalStore((s) => s.config);
   const viewMode = useTerminalStore((s) => s.viewMode);
+  const broadcastMode = useTerminalStore((s) => s.broadcastMode);
   const gridColumns = useTerminalStore((s) => s.gridColumns);
   const hasAnyColor = useTerminalStore((s) => s.autoColorTabs);
   const hideTabBar = useTerminalStore((s) => s.hideTabTitles);
@@ -202,6 +203,15 @@ const StatusBar: React.FC = () => {
           >
             &#9638; {viewMode === 'focus' ? 'Focus' : viewMode === 'grid' ? (gridColumns ? `Grid ${gridColumns}col` : 'Grid') : 'Split'}
           </button>
+          {broadcastMode && (
+            <button
+              className="status-mode-btn status-broadcast-active"
+              onClick={() => useTerminalStore.getState().toggleBroadcastMode()}
+              title="Broadcast typing to all panes (Ctrl+Shift+A)"
+            >
+              &#128227; Broadcast
+            </button>
+          )}
           <span className="status-dim">
             {totalCount} terminal{totalCount !== 1 ? 's' : ''}
             {floatingCount > 0 ? ` (${tiledCount} tiled, ${floatingCount} floating)` : ''}
