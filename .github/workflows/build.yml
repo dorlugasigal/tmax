@@ -60,19 +60,41 @@ jobs:
 
       - name: Generate changelog section
         id: changelog
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           DATE=$(date +%Y-%m-%d)
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
-          # Collect commits since last tag, excluding bot noise
+          # Collect commit messages with GitHub usernames
           if [ -n "$LAST_TAG" ]; then
-            COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"- %s ([@%aN](https://github.com/%aN))" --no-merges \
-              | grep -v "^- chore: download stats snapshot" || true)
+            RANGE="${LAST_TAG}..HEAD"
           else
-            COMMITS=$(git log --pretty=format:"- %s ([@%aN](https://github.com/%aN))" --no-merges \
-              | grep -v "^- chore: download stats snapshot" || true)
+            RANGE="HEAD"
           fi
+
+          COMMITS=""
+          while IFS='|' read -r msg email; do
+            # Skip bot noise
+            [[ "$msg" == *"chore: download stats snapshot"* ]] && continue
+
+            # Extract GitHub username from noreply email, or resolve via API
+            if [[ "$email" =~ ^([^+]+\+)?([^@]+)@users\.noreply\.github\.com$ ]]; then
+              username="${BASH_REMATCH[2]}"
+            else
+              username=$(gh api "/search/users?q=${email}+in:email" --jq '.items[0].login // empty' 2>/dev/null || true)
+            fi
+
+            if [ -n "$username" ]; then
+              COMMITS+="- ${msg} ([@${username}](https://github.com/${username}))"$'\n'
+            else
+              COMMITS+="- ${msg}"$'\n'
+            fi
+          done < <(git log "$RANGE" --pretty=format:"%s|%aE" --no-merges)
+
+          # Trim trailing newline
+          COMMITS="${COMMITS%$'\n'}"
           : "${COMMITS:=- Maintenance and improvements}"
 
           SECTION="## v${VERSION} - ${DATE}
