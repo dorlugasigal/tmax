@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.5.7 - 2026-04-23
+
+- feat: add author attribution to changelog and simplify workflow scripts (dorlugasigal)
+
+
 ## v1.5.6 - 2026-04-23
 
 - fix: restore generate_release_notes alongside explicit body
