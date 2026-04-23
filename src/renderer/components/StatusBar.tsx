@@ -33,9 +33,14 @@ function renderMarkdown(md: string): string {
     // Bare URLs
     .replace(/(^|[^"'])(https?:\/\/[^\s<]+)/g, '$1<a href="$2" target="_blank" rel="noopener noreferrer">$2</a>')
     // Bullet lists
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
     .replace(/^\* (.+)$/gm, '<li>$1</li>')
     .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
-    // Line breaks
+    // Collapse multiple blank lines into a single break
+    .replace(/\n{3,}/g, '\n\n')
+    // Remove newlines adjacent to block elements
+    .replace(/\n*(<\/?(?:h[1-6]|ul|li)>)\n*/g, '$1')
+    // Remaining single newlines become line breaks
     .replace(/\n/g, '<br/>');
 }
 
