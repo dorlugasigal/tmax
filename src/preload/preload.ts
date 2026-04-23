@@ -285,6 +285,10 @@ const terminalAPI: TerminalAPI = {
     return ipcRenderer.invoke(IPC.VERSION_GET_UPDATE);
   },
 
+  getChangelog(): Promise<string> {
+    return ipcRenderer.invoke(IPC.VERSION_GET_CHANGELOG);
+  },
+
   checkForUpdates() {
     ipcRenderer.send(IPC.VERSION_CHECK_NOW);
   },

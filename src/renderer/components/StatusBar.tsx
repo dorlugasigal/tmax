@@ -114,8 +114,7 @@ const StatusBar: React.FC = () => {
   const openChangelog = () => {
     setShowChangelog(true);
     setChangelogLoading(true);
-    fetch('https://raw.githubusercontent.com/InbarR/tmax/main/CHANGELOG.md')
-      .then((res) => res.ok ? res.text() : '')
+    window.terminalAPI.getChangelog()
       .then(setChangelogContent)
       .catch(() => setChangelogContent(''))
       .finally(() => setChangelogLoading(false));
