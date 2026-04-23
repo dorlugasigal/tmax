@@ -130,6 +130,11 @@ const TerminalSettings: React.FC = () => {
         <input type="number" className="settings-input small" value={(config as any).oldSessionDays ?? 30}
           onChange={(e) => update({ oldSessionDays: parseInt(e.target.value) || 30 } as any)} />
       </SettingRow>
+      <SettingRow label="Show-Window Hotkey" description="Global shortcut that restores and focuses tmax from anywhere. Takes effect on next launch. Empty = disabled.">
+        <input type="text" className="settings-input" value={(config as any).showWindowHotkey ?? 'CommandOrControl+Shift+Space'}
+          placeholder="CommandOrControl+Shift+Space"
+          onChange={(e) => update({ showWindowHotkey: e.target.value } as any)} />
+      </SettingRow>
     </div>
   );
 };
