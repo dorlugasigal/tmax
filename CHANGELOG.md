@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.5.6 - 2026-04-23
+
+- fix: restore generate_release_notes alongside explicit body
+- fix: improve changelog display across website, app, and release workflow
+- fix: empty showWindowHotkey setting disables the global hotkey
+- feat: expose the show-window global hotkey in Settings
+
+
 ## v1.3.6
 
 ### New Features
