@@ -67,10 +67,10 @@ jobs:
 
           # Collect commits since last tag, excluding bot noise
           if [ -n "$LAST_TAG" ]; then
-            COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"- %s (%aN)" --no-merges \
+            COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"- %s ([@%aN](https://github.com/%aN))" --no-merges \
               | grep -v "^- chore: download stats snapshot" || true)
           else
-            COMMITS=$(git log --pretty=format:"- %s (%aN)" --no-merges \
+            COMMITS=$(git log --pretty=format:"- %s ([@%aN](https://github.com/%aN))" --no-merges \
               | grep -v "^- chore: download stats snapshot" || true)
           fi
           : "${COMMITS:=- Maintenance and improvements}"
