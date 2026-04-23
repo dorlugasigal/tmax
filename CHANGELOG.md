@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.5.8 - 2026-04-23
+
+- Maintenance and improvements
+
+
 ## v1.5.7 - 2026-04-23
 
 - feat: add author attribution to changelog and simplify workflow scripts (dorlugasigal)
