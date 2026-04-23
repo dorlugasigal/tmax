@@ -1612,6 +1612,63 @@ html.transparency-active .input-dialog {
   background: #5dd866;
 }
 
+/* Changelog modal */
+.changelog-modal {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  width: 600px;
+  max-width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.changelog-modal-content {
+  padding: 12px 20px 20px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.changelog-modal-content h3 {
+  margin: 12px 0 6px;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.changelog-modal-content h4 {
+  margin: 8px 0 4px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.changelog-modal-content ul {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+
+.changelog-modal-content li {
+  margin: 2px 0;
+}
+
+.changelog-modal-content a {
+  color: var(--focus-border);
+  text-decoration: none;
+}
+
+.changelog-modal-content a:hover {
+  text-decoration: underline;
+}
+
+.changelog-modal-content strong {
+  color: var(--text-primary);
+}
+
 .status-cwd {
   color: var(--text-secondary);
   cursor: pointer;

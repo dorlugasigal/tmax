@@ -39,6 +39,34 @@ function renderMarkdown(md: string): string {
     .replace(/\n/g, '<br/>');
 }
 
+const ChangelogModal: React.FC<{ content: string; loading: boolean; onClose: () => void }> = ({ content, loading, onClose }) => {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  return (
+    <div className="update-modal-overlay" onClick={onClose}>
+      <div className="changelog-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="update-modal-header">
+          <h2>Changelog</h2>
+          <button className="update-modal-close" onClick={onClose}>&times;</button>
+        </div>
+        <div className="changelog-modal-content">
+          {loading ? (
+            <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '24px' }}>Loading changelog…</p>
+          ) : content ? (
+            <div dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }} />
+          ) : (
+            <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '24px' }}>Could not load changelog.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const UpdateModal: React.FC<{ info: UpdateInfoState; appVersion: string; onClose: () => void }> = ({ info, appVersion, onClose }) => {
   return (
     <div className="update-modal-overlay" onClick={onClose}>
@@ -79,6 +107,19 @@ const StatusBar: React.FC = () => {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [shownVersion, setShownVersion] = useState<string>('');
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showChangelog, setShowChangelog] = useState(false);
+  const [changelogContent, setChangelogContent] = useState('');
+  const [changelogLoading, setChangelogLoading] = useState(false);
+
+  const openChangelog = () => {
+    setShowChangelog(true);
+    setChangelogLoading(true);
+    fetch('https://raw.githubusercontent.com/InbarR/tmax/main/CHANGELOG.md')
+      .then((res) => res.ok ? res.text() : '')
+      .then(setChangelogContent)
+      .catch(() => setChangelogContent(''))
+      .finally(() => setChangelogLoading(false));
+  };
   const [showZoomDialog, setShowZoomDialog] = useState(false);
 
   const submitReport = () => {
@@ -241,7 +282,8 @@ const StatusBar: React.FC = () => {
           ) : (
             <span
               className="status-version-link"
-              onClick={() => window.open('https://github.com/InbarR/tmax/blob/main/CHANGELOG.md', '_blank')}
+              onClick={openChangelog}
+              data-tooltip="View changelog"
               title="View changelog"
             >v{appVersion}</span>
           )}
@@ -268,6 +310,9 @@ const StatusBar: React.FC = () => {
           </button>
         </div>
       </div>
+      {showChangelog && (
+        <ChangelogModal content={changelogContent} loading={changelogLoading} onClose={() => setShowChangelog(false)} />
+      )}
       {showUpdateModal && updateInfo && (
         <UpdateModal info={updateInfo} appVersion={appVersion} onClose={() => setShowUpdateModal(false)} />
       )}
