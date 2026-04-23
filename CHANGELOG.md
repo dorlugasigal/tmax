@@ -1,5 +1,27 @@
 # Changelog
 
+## v1.5.10 - 2026-04-23
+
+- feat: expose the show-window global hotkey in Settings (Inbar Rotem)
+- fix: empty showWindowHotkey setting disables the global hotkey (Inbar Rotem)
+- fix: improve changelog display across website, app, and release workflow (@dorlugasigal)
+- fix: restore generate_release_notes alongside explicit body (@dorlugasigal)
+- chore(release): v1.5.6 [skip ci] (@github-actions[bot])
+- feat: add author attribution to changelog and simplify workflow scripts (@dorlugasigal)
+- chore(release): v1.5.7 [skip ci] (@github-actions[bot])
+- feat: replace version external link with changelog modal (@dorlugasigal)
+- fix: fetch changelog via main process IPC to bypass CSP (@dorlugasigal)
+- fix: strip duplicate changelog header from modal content (@dorlugasigal)
+- fix: reduce excessive spacing in changelog modal (@dorlugasigal)
+- feat: link author names to GitHub profiles in changelog (@dorlugasigal)
+- fix: resolve GitHub usernames reliably from commit emails (@dorlugasigal)
+- fix: simplify author attribution with sed-based username extraction (@dorlugasigal)
+- chore(release): v1.5.8 [skip ci] (@github-actions[bot])
+- refactor: use gh api for author attribution instead of sed (@dorlugasigal)
+- chore(release): v1.5.9 [skip ci] (@github-actions[bot])
+- fix: add git pull --rebase before push to handle concurrent commits [skip ci] (@dorlugasigal)
+
+
 ## v1.5.9 - 2026-04-23
 
 - refactor: use gh api for author attribution instead of sed (@dorlugasigal)
