@@ -65,39 +65,30 @@ jobs:
           DATE=$(date +%Y-%m-%d)
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
+          # Collect commits since last tag, excluding bot noise
           if [ -n "$LAST_TAG" ]; then
-            COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"- %s" --no-merges | grep -v "^- chore: download stats snapshot$" || true)
+            COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"- %s (%aN)" --no-merges \
+              | grep -v "^- chore: download stats snapshot" || true)
           else
-            COMMITS=$(git log --pretty=format:"- %s" --no-merges | grep -v "^- chore: download stats snapshot$" || true)
+            COMMITS=$(git log --pretty=format:"- %s (%aN)" --no-merges \
+              | grep -v "^- chore: download stats snapshot" || true)
           fi
-
-          if [ -z "$COMMITS" ]; then
-            COMMITS="- Maintenance and improvements"
-          fi
+          : "${COMMITS:=- Maintenance and improvements}"
 
           SECTION="## v${VERSION} - ${DATE}
 
           ${COMMITS}"
-
-          # Write section to file for release body
           echo "$SECTION" > /tmp/changelog_section.md
 
-          # Prepend to CHANGELOG.md
+          # Prepend new section to CHANGELOG.md (after header line)
           if [ -f CHANGELOG.md ]; then
-            # Insert after the first line (# Changelog header)
-            head -1 CHANGELOG.md > /tmp/changelog_new.md
-            echo "" >> /tmp/changelog_new.md
-            echo "$SECTION" >> /tmp/changelog_new.md
-            echo "" >> /tmp/changelog_new.md
-            tail -n +2 CHANGELOG.md >> /tmp/changelog_new.md
+            { head -1 CHANGELOG.md; echo; echo "$SECTION"; echo; tail -n +2 CHANGELOG.md; } > /tmp/changelog_new.md
             mv /tmp/changelog_new.md CHANGELOG.md
           else
-            echo "# Changelog" > CHANGELOG.md
-            echo "" >> CHANGELOG.md
-            echo "$SECTION" >> CHANGELOG.md
+            printf '# Changelog\n\n%s\n' "$SECTION" > CHANGELOG.md
           fi
 
-          # Output for release body (use file to handle multiline)
+          # Output for release body (heredoc for multiline)
           {
             echo "section<<CHANGELOG_EOF"
             cat /tmp/changelog_section.md
@@ -156,21 +147,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y dpkg fakeroot rpm libx11-dev libxkbfile-dev
 
-      # Generate macOS icon (icns) from png
+      # Generate macOS icon (icns) from png using standard iconset sizes
       - name: Generate macOS icon
         if: matrix.platform == 'darwin'
         run: |
           mkdir -p assets/icon.iconset
-          sips -z 16 16     assets/icon.png --out assets/icon.iconset/icon_16x16.png
-          sips -z 32 32     assets/icon.png --out assets/icon.iconset/icon_16x16@2x.png
-          sips -z 32 32     assets/icon.png --out assets/icon.iconset/icon_32x32.png
-          sips -z 64 64     assets/icon.png --out assets/icon.iconset/icon_32x32@2x.png
-          sips -z 128 128   assets/icon.png --out assets/icon.iconset/icon_128x128.png
-          sips -z 256 256   assets/icon.png --out assets/icon.iconset/icon_128x128@2x.png
-          sips -z 256 256   assets/icon.png --out assets/icon.iconset/icon_256x256.png
-          sips -z 512 512   assets/icon.png --out assets/icon.iconset/icon_256x256@2x.png
-          sips -z 512 512   assets/icon.png --out assets/icon.iconset/icon_512x512.png
-          sips -z 1024 1024 assets/icon.png --out assets/icon.iconset/icon_512x512@2x.png
+          for size in 16 32 128 256 512; do
+            retina=$((size * 2))
+            sips -z $size $size assets/icon.png --out "assets/icon.iconset/icon_${size}x${size}.png"
+            sips -z $retina $retina assets/icon.png --out "assets/icon.iconset/icon_${size}x${size}@2x.png"
+          done
           iconutil -c icns assets/icon.iconset -o assets/icon.icns
 
       - name: Install dependencies
@@ -187,30 +173,26 @@ jobs:
         run: |
           codesign --force --deep --sign - out/tmax-darwin-${{ matrix.arch }}/tmax.app
 
-      # Rename Windows Squirrel artifacts to include architecture
-      - name: Rename Windows installer and Squirrel artifacts
+      - name: Rename Windows Squirrel artifacts
         if: matrix.platform == 'win32'
         shell: bash
         run: |
           VERSION=$(node -p "require('./package.json').version")
           SQDIR="out/make/squirrel.windows/${{ matrix.arch }}"
+          ARCH="${{ matrix.arch }}"
 
-          # Rename Setup.exe to include arch
+          # Rename Setup.exe and nupkg to include architecture
           for f in "$SQDIR"/*.exe; do
-            mv "$f" "$SQDIR/tmax-${VERSION}-${{ matrix.arch }}-Setup.exe"
+            mv "$f" "$SQDIR/tmax-${VERSION}-${ARCH}-Setup.exe"
           done
-
-          # Rename nupkg to include arch (e.g. tmax-1.4.8-x64-full.nupkg)
           for f in "$SQDIR"/*.nupkg; do
-            base=$(basename "$f")
-            newname=$(echo "$base" | sed "s/-full\.nupkg/-${{ matrix.arch }}-full.nupkg/")
-            mv "$f" "$SQDIR/$newname"
+            mv "$f" "$SQDIR/$(basename "$f" | sed "s/-full/-${ARCH}-full/")"
           done
 
-          # Rewrite RELEASES file entries to match renamed nupkg, then rename it
+          # Update RELEASES file entries to match renamed nupkg
           if [ -f "$SQDIR/RELEASES" ]; then
-            sed -i "s/-full\.nupkg/-${{ matrix.arch }}-full.nupkg/g" "$SQDIR/RELEASES"
-            mv "$SQDIR/RELEASES" "$SQDIR/RELEASES-${{ matrix.arch }}"
+            sed -i "s/-full\.nupkg/-${ARCH}-full.nupkg/g" "$SQDIR/RELEASES"
+            mv "$SQDIR/RELEASES" "$SQDIR/RELEASES-${ARCH}"
           fi
 
       # Create portable ZIP for Windows
@@ -252,17 +234,11 @@ jobs:
       - name: Display structure of downloaded files
         run: ls -R artifacts
 
-      # Rename DMG files to include architecture
       - name: Rename DMG files to include architecture
         run: |
           for dir in artifacts/tmax-darwin-*/; do
-            arch=$(basename "$dir" | sed 's/tmax-darwin-//')
-            for dmg in "$dir"out/make/**/*.dmg; do
-              if [ -f "$dmg" ]; then
-                newname=$(dirname "$dmg")/tmax-darwin-${arch}.dmg
-                mv "$dmg" "$newname"
-              fi
-            done
+            arch="${dir##*-}" && arch="${arch%/}"
+            find "$dir" -name '*.dmg' -exec mv {} "$(dirname {})/../tmax-darwin-${arch}.dmg" \; 2>/dev/null || true
           done
 
       - name: Create Release
