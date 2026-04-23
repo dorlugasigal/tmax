@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.5.9 - 2026-04-23
+
+- refactor: use gh api for author attribution instead of sed (@dorlugasigal)
+
+
 ## v1.5.8 - 2026-04-23
 
 - Maintenance and improvements
