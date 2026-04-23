@@ -57,7 +57,7 @@ const ChangelogModal: React.FC<{ content: string; loading: boolean; onClose: () 
           {loading ? (
             <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '24px' }}>Loading changelog…</p>
           ) : content ? (
-            <div dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }} />
+            <div dangerouslySetInnerHTML={{ __html: renderMarkdown(content.replace(/^#\s+Changelog\s*\n+/, '')) }} />
           ) : (
             <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '24px' }}>Could not load changelog.</p>
           )}
