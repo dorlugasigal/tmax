@@ -239,7 +239,11 @@ const StatusBar: React.FC = () => {
               v{appVersion} &rarr; v{updateInfo.latest}
             </span>
           ) : (
-            <span className="status-dim">v{appVersion}</span>
+            <span
+              className="status-version-link"
+              onClick={() => window.open('https://github.com/InbarR/tmax/blob/main/CHANGELOG.md', '_blank')}
+              title="View changelog"
+            >v{appVersion}</span>
           )}
           <button
             className="status-mode-btn"

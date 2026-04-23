@@ -1431,6 +1431,15 @@ html.transparency-active .input-dialog {
   color: var(--text-secondary);
 }
 
+.status-version-link {
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.status-version-link:hover {
+  color: var(--text-primary, #e2e8f0);
+  text-decoration: underline;
+}
+
 .status-update-available {
   color: #4ec957;
   cursor: pointer;
